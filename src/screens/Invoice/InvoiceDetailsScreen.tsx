@@ -57,61 +57,138 @@ interface CustomerDetails {
   name: string;
 }
 
-interface InvoiceItem {
-  inDate: string;
-  outDate: string;
-  lotNo: string;
-  itemName: string;
-  tax: {
-    cgstPercent: number;
-    sgstPercent: number;
-    igstPercent: number;
-  };
-  quantity: number;
-  rate: string;
-  balanceQty: number;
-  amount: string;
+interface PlanDetails {
+  planId?: string;
+  planCode?: string;
+  planName?: string;
+  planType?: string;
+  planSubType?: string;
+  planNoOfDays?: number;
+  planBillingMechanism?: string;
+  minimumBilling?: string;
+  planStatus?: string;
+  planSacCode?: string;
+  planSacCodeDesc?: string;
 }
 
-interface SACSummaryItem {
-  serialNo: number;
+interface ItemDetails {
+  itemId: string;
+  itemCode: string;
+  originalRate: string;
+  taxAmount: string;
+  totalAmount: string;
+  cgstPercent: number;
+  cgstAmount: string;
+  sgstPercent: number;
+  sgstAmount: string;
+  igstPercent: number;
+  igstAmount: string;
   sacCode: string;
-  sacCodeDescription: string;
-  taxableValue: string;
-  cgst: {percent: number; amount: string};
-  sgst: {percent: number; amount: string};
-  igst: {percent: number; amount: string};
+  sacCodeDesc: string;
+  isConsolidated: boolean;
+  originalItemCount: number;
+  consolidatedItemIds: string[];
+}
+
+interface InvoiceItem {
+  fromDate: string;
+  toDate: string;
+  lotNo: string;
+  itemName: string;
+  tax: string;
+  qty: number;
+  preservationRate: string;
+  balance: number;
+  preservationAmount: string;
+  itemDetails: ItemDetails;
+}
+
+interface ItemSection {
+  sectionHeader: string;
+  planDetails: PlanDetails;
+  items: InvoiceItem[];
 }
 
 interface InvoiceSummary {
-  totalInvoiceItemAmount: string;
-  totalSGSTAmount: string;
-  totalCGSTAmount: string;
-  totalIGSTAmount: string;
-  totalTaxAmount: string;
-  totalRoundoffAmount: string;
-  totalInvoiceAmount: string;
+  total: string;
+  sgst: string;
+  cgst: string;
+  igst: string;
+  taxable: string;
+  taxTotal: string;
+  whetherTaxPayable: string;
+  roundOffAmount: string;
+  currentBillTotal: string;
+  amountInWords: string;
+}
+interface SACSummaryItem {
+  sr: number;
+  sacCode: string;
+  taxableValue: string;
+  cgst: string;
+  cgstAmount: string;
+  sgst: string;
+  sgstAmount: string;
+  igst: string;
+  igstAmount: string;
+}
+
+interface BankDetails {
+  label: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
 }
 
 interface InvoiceData {
-  invoiceHeader: InvoiceHeader;
-  billingAddress: BillingAddress;
-  customerDetails: CustomerDetails;
-  invoiceItems: InvoiceItem[];
-  invoiceSummary: InvoiceSummary;
-  sacCodeSummary: {
+  documentInfo: {
+    pageNumber: string;
+    documentType: string;
     title: string;
+  };
+  billedTo: {
+    label: string;
+    name: string;
+    addressLine1: string;
+    addressLine2: string;
+    cityPincode: string;
+    state: string;
+    placeOfSupply: string;
+    stateWithCode: string;
+  };
+  invoiceDetails: {
+    invoiceNo: string;
+    invoiceDate: string;
+    period: string;
+    gstin: string;
+    stateInfo: string;
+  };
+  itemSections: ItemSection[];
+  financialSummary: InvoiceSummary;
+  sacCodeSummary: {
+    sacCodeLine: string;
+    eoeStatement: string;
+    tableHeaders: string[];
     details: SACSummaryItem[];
     totals: {
-      totalTaxableValue: string;
-      totalCGSTAmount: string;
-      totalSGSTAmount: string;
-      totalIGSTAmount: string;
+      label: string;
+      taxableValue: string;
+      cgstAmount: string;
+      sgstAmount: string;
+      igstAmount: string;
     };
-    additionalInfo: {
-      whetherTaxPayableUnderReverseCharges: string;
-      errorAndOmissionsExcepted: boolean;
-    };
+  };
+  eInvoiceDetails: {
+    irnNo: string;
+    acknowledgment: string;
+    signedQRCode: string;
+    hasQRCode: boolean;
+  };
+  termsAndConditions: string[];
+  bankDetails: BankDetails;
+  signature: {
+    companyLine: string;
+    designation: string;
   };
 }
 
@@ -359,8 +436,11 @@ const InvoiceDetailsScreen: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: string | number): string => {
-    const numAmount = parseFloat(amount.toString() || '0');
+  const formatCurrency = (
+    amount: string | number | undefined | null,
+  ): string => {
+    if (amount === undefined || amount === null) return '₹0.00';
+    const numAmount = parseFloat(amount.toString());
     if (isNaN(numAmount)) return '₹0.00';
     return `₹${numAmount.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
@@ -368,7 +448,9 @@ const InvoiceDetailsScreen: React.FC = () => {
     })}`;
   };
 
-  const formatDate = (dateString: string | number | Date): string => {
+  const formatDate = (
+    dateString: string | number | Date | undefined | null,
+  ): string => {
     if (!dateString) return 'N/A';
     try {
       let dateStr = dateString.toString();
@@ -386,7 +468,7 @@ const InvoiceDetailsScreen: React.FC = () => {
         year: 'numeric',
       });
     } catch (error: unknown) {
-      return dateString.toString();
+      return 'N/A';
     }
   };
 
@@ -396,7 +478,9 @@ const InvoiceDetailsScreen: React.FC = () => {
         <Text style={styles.companyName}>
           Savla Foods & Cold Storage Pvt. Ltd.
         </Text>
-        <Text style={styles.taxInvoiceTitle}>TAX INVOICE</Text>
+        <Text style={styles.taxInvoiceTitle}>
+          {invoiceData?.documentInfo.title || 'TAX INVOICE'}
+        </Text>
       </View>
 
       <View style={styles.actionButtonsContainer}>
@@ -421,10 +505,9 @@ const InvoiceDetailsScreen: React.FC = () => {
   );
 
   const renderInvoiceInfo = () => {
-    if (!invoiceData?.invoiceHeader || !invoiceData?.billingAddress)
-      return null;
+    if (!invoiceData?.invoiceDetails) return null;
 
-    const {invoiceHeader, billingAddress} = invoiceData;
+    const {invoiceDetails} = invoiceData;
 
     return (
       <View style={styles.sectionContainer}>
@@ -434,21 +517,23 @@ const InvoiceDetailsScreen: React.FC = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Invoice No</Text>
               <Text style={styles.infoValue}>
-                {invoiceHeader.invoiceNo || 'N/A'}
+                {invoiceDetails.invoiceNo.replace('Invoice No : ', '') || 'N/A'}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Invoice Date</Text>
               <Text style={styles.infoValue}>
-                {formatDate(invoiceHeader.invoiceDate)}
+                {formatDate(
+                  invoiceDetails.invoiceDate.replace('Invoice Date : ', ''),
+                )}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Period</Text>
               <Text style={styles.infoValue}>
-                {invoiceHeader.period || 'N/A'}
+                {invoiceDetails.period.replace('Period : ', '') || 'N/A'}
               </Text>
             </View>
           </View>
@@ -457,14 +542,17 @@ const InvoiceDetailsScreen: React.FC = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Place of Supply</Text>
               <Text style={styles.infoValue}>
-                {billingAddress.state || 'N/A'}
+                {invoiceData.billedTo.placeOfSupply.replace(
+                  'Place of Supply : ',
+                  '',
+                ) || 'N/A'}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>State Code</Text>
               <Text style={styles.infoValue}>
-                {billingAddress.stateCode || 'N/A'}
+                {invoiceData.billedTo.stateWithCode.split('Code: ')[1] || 'N/A'}
               </Text>
             </View>
           </View>
@@ -474,44 +562,34 @@ const InvoiceDetailsScreen: React.FC = () => {
   };
 
   const renderBillingInfo = () => {
-    if (!invoiceData?.customerDetails || !invoiceData?.billingAddress)
-      return null;
+    if (!invoiceData?.billedTo) return null;
 
-    const {customerDetails, billingAddress} = invoiceData;
+    const {billedTo} = invoiceData;
 
     return (
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Billing Information</Text>
         <View style={styles.billingCard}>
-          <Text style={styles.customerName}>
-            {customerDetails.name || 'N/A'}
-          </Text>
-          <Text style={styles.addressText}>
-            {billingAddress.addressLine1 || ''}
-          </Text>
-          {billingAddress.addressLine2 && (
-            <Text style={styles.addressText}>
-              {billingAddress.addressLine2}
-            </Text>
+          <Text style={styles.customerName}>{billedTo.name || 'N/A'}</Text>
+          <Text style={styles.addressText}>{billedTo.addressLine1 || ''}</Text>
+          {billedTo.addressLine2 && (
+            <Text style={styles.addressText}>{billedTo.addressLine2}</Text>
           )}
-          <Text style={styles.addressText}>
-            {billingAddress.city ? `${billingAddress.city}, ` : ''}
-            {billingAddress.state ? `${billingAddress.state} - ` : ''}
-            {billingAddress.pincode || ''}
-          </Text>
-          <Text style={styles.addressText}>{billingAddress.country || ''}</Text>
+          <Text style={styles.addressText}>{billedTo.cityPincode || ''}</Text>
+          <Text style={styles.addressText}>{billedTo.state || ''}</Text>
 
           <View style={styles.gstContainer}>
             <View style={styles.gstRow}>
               <Text style={styles.gstLabel}>GSTIN</Text>
               <Text style={styles.gstValue}>
-                {billingAddress.gstin || 'N/A'}
+                {invoiceData.invoiceDetails.gstin.replace('GSTIN : ', '') ||
+                  'N/A'}
               </Text>
             </View>
             <View style={styles.gstRow}>
               <Text style={styles.gstLabel}>State Code</Text>
               <Text style={styles.gstValue}>
-                {billingAddress.stateCode || 'N/A'}
+                {billedTo.stateWithCode.split('Code: ')[1] || 'N/A'}
               </Text>
             </View>
           </View>
@@ -522,8 +600,8 @@ const InvoiceDetailsScreen: React.FC = () => {
 
   const renderItemsTable = () => {
     if (
-      !invoiceData?.invoiceItems ||
-      !Array.isArray(invoiceData.invoiceItems)
+      !invoiceData?.itemSections ||
+      !Array.isArray(invoiceData.itemSections)
     ) {
       return (
         <View style={styles.sectionContainer}>
@@ -535,163 +613,173 @@ const InvoiceDetailsScreen: React.FC = () => {
       );
     }
 
-    const items = invoiceData.invoiceItems;
-
     return (
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Invoice Items</Text>
-
-        <View style={styles.tableContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-            <View style={styles.table}>
-              <View style={styles.tableHeader}>
-                <View style={[styles.tableCell, {width: 100}]}>
-                  <Text style={styles.tableHeaderText}>From Date</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 100}]}>
-                  <Text style={styles.tableHeaderText}>To Date</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 70}]}>
-                  <Text style={styles.tableHeaderText}>Lot No</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 140}]}>
-                  <Text style={styles.tableHeaderText}>Item Name</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 60}]}>
-                  <Text style={styles.tableHeaderText}>Tax</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 60}]}>
-                  <Text style={styles.tableHeaderText}>Qty</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 80}]}>
-                  <Text style={styles.tableHeaderText}>Rate</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 80}]}>
-                  <Text style={styles.tableHeaderText}>Balance</Text>
-                </View>
-                <View style={[styles.tableCell, {width: 90}]}>
-                  <Text style={styles.tableHeaderText}>Amount</Text>
-                </View>
-              </View>
-
-              <ScrollView style={styles.tableBody}>
-                {items.map((item, index) => (
-                  <View key={index} style={styles.tableRow}>
+        {invoiceData.itemSections.map((section, sectionIndex) => (
+          <View key={sectionIndex} style={styles.sectionPlanContainer}>
+            <Text style={styles.sectionPlanTitle}>{section.sectionHeader}</Text>
+            <View style={styles.tableContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                <View style={styles.table}>
+                  <View style={styles.tableHeader}>
                     <View style={[styles.tableCell, {width: 100}]}>
-                      <Text style={styles.tableRowText}>
-                        {formatDate(item.inDate)}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>From Date</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 100}]}>
-                      <Text style={styles.tableRowText}>
-                        {formatDate(item.outDate)}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>To Date</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 70}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.lotNo || 'N/A'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Lot No</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 140}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.itemName || 'N/A'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Item Name</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 60}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.tax
-                          ? item.tax.cgstPercent > 0
-                            ? `${item.tax.cgstPercent + item.tax.sgstPercent}%`
-                            : `${item.tax.igstPercent}%`
-                          : 'N/A'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Tax</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 60}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.quantity || '0'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Qty</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 80}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.rate || '0.00'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Rate</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 80}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.balanceQty || '0'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Balance</Text>
                     </View>
                     <View style={[styles.tableCell, {width: 90}]}>
-                      <Text style={styles.tableRowText}>
-                        {item.amount || '0.00'}
-                      </Text>
+                      <Text style={styles.tableHeaderText}>Amount</Text>
                     </View>
                   </View>
-                ))}
+
+                  <ScrollView style={styles.tableBody}>
+                    {section.items.map((item, index) => (
+                      <View key={index} style={styles.tableRow}>
+                        <View style={[styles.tableCell, {width: 100}]}>
+                          <Text style={styles.tableRowText}>
+                            {formatDate(item.fromDate)}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 100}]}>
+                          <Text style={styles.tableRowText}>
+                            {formatDate(item.toDate)}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 70}]}>
+                          <Text style={styles.tableRowText}>
+                            {item.lotNo || 'N/A'}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 140}]}>
+                          <Text style={styles.tableRowText}>
+                            {item.itemName || 'N/A'}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 60}]}>
+                          <Text style={styles.tableRowText}>
+                            {item.tax || 'N/A'}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 60}]}>
+                          <Text style={styles.tableRowText}>
+                            {item.qty || '0'}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 80}]}>
+                          <Text style={styles.tableRowText}>
+                            {formatCurrency(item.preservationRate)}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 80}]}>
+                          <Text style={styles.tableRowText}>
+                            {item.balance || '0'}
+                          </Text>
+                        </View>
+                        <View style={[styles.tableCell, {width: 90}]}>
+                          <Text style={styles.tableRowText}>
+                            {formatCurrency(item.preservationAmount)}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
               </ScrollView>
             </View>
-          </ScrollView>
-        </View>
+          </View>
+        ))}
       </View>
     );
   };
 
   const renderSummary = () => {
-    if (!invoiceData?.invoiceSummary) return null;
+    if (!invoiceData?.financialSummary) return null;
 
-    const {invoiceSummary} = invoiceData;
+    const {financialSummary} = invoiceData;
+
+    // Extract numerical values from the string fields
+    const taxableValue = financialSummary.taxable.replace('Taxable ', '');
+    const cgstAmount = financialSummary.cgst.replace('CGST ', '');
+    const sgstAmount = financialSummary.sgst.replace('SGST ', '');
+    const igstAmount = financialSummary.igst.replace('IGST ', '');
+    const taxTotal = financialSummary.taxTotal.replace('Tax Total ', '');
+    const roundOffAmount = financialSummary.roundOffAmount.replace(
+      'RoundOff Amount ',
+      '',
+    );
+    const currentBillTotal = financialSummary.currentBillTotal.replace(
+      'Current Bill Total ',
+      '',
+    );
 
     return (
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Invoice Summary</Text>
-
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total</Text>
+            <Text style={styles.summaryLabel}>Taxable Amount</Text>
             <Text style={styles.summaryValue}>
-              {formatCurrency(invoiceSummary.totalInvoiceItemAmount)}
+              {formatCurrency(taxableValue)}
             </Text>
           </View>
 
-          {parseFloat(invoiceSummary.totalSGSTAmount || '0') > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>SGST</Text>
-              <Text style={styles.summaryValue}>
-                {formatCurrency(invoiceSummary.totalSGSTAmount)}
-              </Text>
-            </View>
-          )}
-
-          {parseFloat(invoiceSummary.totalCGSTAmount || '0') > 0 && (
+          {parseFloat(cgstAmount || '0') > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>CGST</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(invoiceSummary.totalCGSTAmount)}
+                {formatCurrency(cgstAmount)}
               </Text>
             </View>
           )}
 
-          {parseFloat(invoiceSummary.totalIGSTAmount || '0') >= 0 && (
+          {parseFloat(sgstAmount || '0') > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>SGST</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(sgstAmount)}
+              </Text>
+            </View>
+          )}
+
+          {parseFloat(igstAmount || '0') >= 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>IGST</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(invoiceSummary.totalIGSTAmount)}
+                {formatCurrency(igstAmount)}
               </Text>
             </View>
           )}
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tax Total</Text>
-            <Text style={styles.summaryValue}>
-              {formatCurrency(invoiceSummary.totalTaxAmount)}
-            </Text>
+            <Text style={styles.summaryLabel}>Total Tax</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(taxTotal)}</Text>
           </View>
 
-          {parseFloat(invoiceSummary.totalRoundoffAmount || '0') !== 0 && (
+          {parseFloat(roundOffAmount || '0') !== 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Roundoff Amount</Text>
+              <Text style={styles.summaryLabel}>Round Off Amount</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(invoiceSummary.totalRoundoffAmount)}
+                {formatCurrency(roundOffAmount)}
               </Text>
             </View>
           )}
@@ -701,7 +789,23 @@ const InvoiceDetailsScreen: React.FC = () => {
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Current Bill Total</Text>
             <Text style={styles.totalValue}>
-              {formatCurrency(invoiceSummary.totalInvoiceAmount)}
+              {formatCurrency(currentBillTotal)}
+            </Text>
+          </View>
+
+          <View style={styles.amountInWordsContainer}>
+            <Text style={styles.amountInWordsLabel}>Amount in Words</Text>
+            <Text style={styles.amountInWordsValue}>
+              {financialSummary.amountInWords.replace('Amt In Words : ', '')}
+            </Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>
+              Tax Payable on Reverse Charge
+            </Text>
+            <Text style={styles.summaryValue}>
+              {financialSummary.whetherTaxPayable.split(':')[1].trim()}
             </Text>
           </View>
         </View>
@@ -716,10 +820,9 @@ const InvoiceDetailsScreen: React.FC = () => {
 
     return (
       <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>{sacCodeSummary.title}</Text>
+        <Text style={styles.sectionTitle}>{sacCodeSummary.sacCodeLine}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={true}>
           <View style={styles.sacCodeContainer}>
-            {/* Header Row */}
             <View style={styles.sacCodeRow}>
               <View
                 style={[styles.sacCodeCell, styles.sacCodeHeader, {width: 50}]}>
@@ -767,57 +870,51 @@ const InvoiceDetailsScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Data Rows */}
-            {sacCodeSummary.details.map(
-              (detail: SACSummaryItem, index: number) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.sacCodeRow,
-                    index % 2 === 0
-                      ? styles.sacCodeRowEven
-                      : styles.sacCodeRowOdd,
-                  ]}>
-                  <View style={[styles.sacCodeCell, {width: 50}]}>
-                    <Text style={styles.sacCodeCellText}>
-                      {detail.serialNo}
-                    </Text>
-                  </View>
-                  <View style={[styles.sacCodeCell, {width: 120}]}>
-                    <Text style={styles.sacCodeCellText}>{detail.sacCode}</Text>
-                  </View>
-                  <View style={[styles.sacCodeCell, {width: 120}]}>
-                    <Text style={styles.sacCodeCellText}>
-                      {formatCurrency(detail.taxableValue).replace('₹', '')}
-                    </Text>
-                  </View>
-                  <View style={[styles.sacCodeCell, {width: 120}]}>
-                    <Text style={styles.sacCodeCellText}>
-                      {detail.cgst.percent.toFixed(2)}% |{' '}
-                      {formatCurrency(detail.cgst.amount).replace('₹', '')}
-                    </Text>
-                  </View>
-                  <View style={[styles.sacCodeCell, {width: 120}]}>
-                    <Text style={styles.sacCodeCellText}>
-                      {detail.sgst.percent.toFixed(2)}% |{' '}
-                      {formatCurrency(detail.sgst.amount).replace('₹', '')}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.sacCodeCell,
-                      {width: 120, borderRightWidth: 0},
-                    ]}>
-                    <Text style={styles.sacCodeCellText}>
-                      {detail.igst.percent.toFixed(2)}% |{' '}
-                      {formatCurrency(detail.igst.amount).replace('₹', '')}
-                    </Text>
-                  </View>
+            {sacCodeSummary.details.map((detail, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.sacCodeRow,
+                  index % 2 === 0
+                    ? styles.sacCodeRowEven
+                    : styles.sacCodeRowOdd,
+                ]}>
+                <View style={[styles.sacCodeCell, {width: 50}]}>
+                  <Text style={styles.sacCodeCellText}>{detail.sr}</Text>
                 </View>
-              ),
-            )}
+                <View style={[styles.sacCodeCell, {width: 120}]}>
+                  <Text style={styles.sacCodeCellText}>{detail.sacCode}</Text>
+                </View>
+                <View style={[styles.sacCodeCell, {width: 120}]}>
+                  <Text style={styles.sacCodeCellText}>
+                    {formatCurrency(detail.taxableValue).replace('₹', '')}
+                  </Text>
+                </View>
+                <View style={[styles.sacCodeCell, {width: 120}]}>
+                  <Text style={styles.sacCodeCellText}>
+                    {detail.cgst} |{' '}
+                    {formatCurrency(detail.cgstAmount).replace('₹', '')}
+                  </Text>
+                </View>
+                <View style={[styles.sacCodeCell, {width: 120}]}>
+                  <Text style={styles.sacCodeCellText}>
+                    {detail.sgst} |{' '}
+                    {formatCurrency(detail.sgstAmount).replace('₹', '')}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.sacCodeCell,
+                    {width: 120, borderRightWidth: 0},
+                  ]}>
+                  <Text style={styles.sacCodeCellText}>
+                    {detail.igst} |{' '}
+                    {formatCurrency(detail.igstAmount).replace('₹', '')}
+                  </Text>
+                </View>
+              </View>
+            ))}
 
-            {/* Total row */}
             <View style={styles.sacCodeTotalRow}>
               <View style={[styles.sacCodeCell, {width: 50}]}>
                 <Text style={styles.sacCodeTotalText}></Text>
@@ -827,31 +924,35 @@ const InvoiceDetailsScreen: React.FC = () => {
               </View>
               <View style={[styles.sacCodeCell, {width: 120}]}>
                 <Text style={styles.sacCodeTotalText}>
-                  {formatCurrency(
-                    sacCodeSummary.totals.totalTaxableValue,
-                  ).replace('₹', '')}
+                  {formatCurrency(sacCodeSummary.totals.taxableValue).replace(
+                    '₹',
+                    '',
+                  )}
                 </Text>
               </View>
               <View style={[styles.sacCodeCell, {width: 120}]}>
                 <Text style={styles.sacCodeTotalText}>
-                  {formatCurrency(
-                    sacCodeSummary.totals.totalCGSTAmount,
-                  ).replace('₹', '')}
+                  {formatCurrency(sacCodeSummary.totals.cgstAmount).replace(
+                    '₹',
+                    '',
+                  )}
                 </Text>
               </View>
               <View style={[styles.sacCodeCell, {width: 120}]}>
                 <Text style={styles.sacCodeTotalText}>
-                  {formatCurrency(
-                    sacCodeSummary.totals.totalSGSTAmount,
-                  ).replace('₹', '')}
+                  {formatCurrency(sacCodeSummary.totals.sgstAmount).replace(
+                    '₹',
+                    '',
+                  )}
                 </Text>
               </View>
               <View
                 style={[styles.sacCodeCell, {width: 120, borderRightWidth: 0}]}>
                 <Text style={styles.sacCodeTotalText}>
-                  {formatCurrency(
-                    sacCodeSummary.totals.totalIGSTAmount,
-                  ).replace('₹', '')}
+                  {formatCurrency(sacCodeSummary.totals.igstAmount).replace(
+                    '₹',
+                    '',
+                  )}
                 </Text>
               </View>
             </View>
@@ -861,79 +962,92 @@ const InvoiceDetailsScreen: React.FC = () => {
     );
   };
 
-  const renderFooter = () => (
-    <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>Terms & Conditions</Text>
-      <View style={styles.termsCard}>
-        <Text style={styles.termText}>
-          • All payments to be made within 15 days from the date of Invoice.
-        </Text>
-        <Text style={styles.termText}>
-          • Overdue amounts shall bear the D.P.C. @24% P.A.
-        </Text>
-        <Text style={styles.termText}>
-          • If any discrepancy is found in this invoice including stock
-          position, you are hereby requested to inform our office within 7 days
-          of the date receipt of this invoice, failing which we shall consider
-          the same to be correct and accepted by you.
-        </Text>
-        <Text style={styles.termText}>
-          • All disputes shall be limited to Mumbai and shall be subject to
-          Mumbai Jurisdiction only.
-        </Text>
-      </View>
+  const renderFooter = () => {
+    if (!invoiceData?.termsAndConditions || !invoiceData?.bankDetails)
+      return null;
 
-      {/* QR Code and IRN Details Section */}
-      <View style={styles.qrIrnContainer}>
-        <Text style={styles.sectionTitle}>E-Invoice Details</Text>
-        <View style={styles.qrIrnWrapper}>
-          {/* QR Code Section - Left */}
-          <View style={styles.qrCodeSection}>
-            <Text style={styles.qrCodeTitle}>QR Code</Text>
-            {invoiceData?.invoiceHeader?.signedQRCode ? (
-              <View style={styles.qrCodeWrapper}>
-                <QRCode
-                  value={invoiceData.invoiceHeader.signedQRCode}
-                  size={80}
-                  backgroundColor="#fff"
-                  color="#000"
-                />
-              </View>
-            ) : (
-              <Text style={styles.noDataText}>No QR Code available</Text>
-            )}
-          </View>
+    return (
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>Terms & Conditions</Text>
+        <View style={styles.termsCard}>
+          {invoiceData.termsAndConditions.map((term, index) => (
+            <Text key={index} style={styles.termText}>
+              • {term}
+            </Text>
+          ))}
+        </View>
 
-          {/* IRN Details Section - Right */}
-          <View style={styles.irnDetailsSection}>
-            {/* <Text style={styles.irnDetailsTitle}>IRN Details</Text> */}
-            <View style={styles.irnDetailsCard}>
-              <View style={styles.irnDetailRow}>
-                <Text style={styles.irnDetailLabel}>IRN No:</Text>
-                <Text style={styles.irnDetailValue}>
-                  {invoiceData?.invoiceHeader?.irnNo || 'N/A'}
-                </Text>
-              </View>
-              <View style={styles.irnDetailRow}>
-                <Text style={styles.irnDetailLabel}>ACK No:</Text>
-                <Text style={styles.irnDetailValue}>
-                  {invoiceData?.invoiceHeader?.ackNumber || 'N/A'}
-                </Text>
-              </View>
-              <View style={styles.irnDetailRow}>
-                <Text style={styles.irnDetailLabel}>ACK Date:</Text>
-                <Text style={styles.irnDetailValue}>
-                  {invoiceData?.invoiceHeader?.ackDate
-                    ? formatDate(invoiceData.invoiceHeader.ackDate)
-                    : 'N/A'}
-                </Text>
+        <Text style={styles.sectionTitle}>Bank Details</Text>
+        <View style={styles.bankDetailsCard}>
+          <Text style={styles.bankDetailText}>
+            {invoiceData.bankDetails.label}
+          </Text>
+          <Text style={styles.bankDetailText}>
+            Bank: {invoiceData.bankDetails.bankName}
+          </Text>
+          <Text style={styles.bankDetailText}>
+            {invoiceData.bankDetails.accountNumber}
+          </Text>
+          <Text style={styles.bankDetailText}>
+            {invoiceData.bankDetails.ifscCode}
+          </Text>
+        </View>
+
+        <View style={styles.qrIrnContainer}>
+          <Text style={styles.sectionTitle}>E-Invoice Details</Text>
+          <View style={styles.qrIrnWrapper}>
+            <View style={styles.qrCodeSection}>
+              <Text style={styles.qrCodeTitle}>QR Code</Text>
+              {invoiceData.eInvoiceDetails.signedQRCode ? (
+                <View style={styles.qrCodeWrapper}>
+                  <QRCode
+                    value={invoiceData.eInvoiceDetails.signedQRCode}
+                    size={80}
+                    backgroundColor="#fff"
+                    color="#000"
+                  />
+                </View>
+              ) : (
+                <Text style={styles.noDataText}>No QR Code available</Text>
+              )}
+            </View>
+
+            <View style={styles.irnDetailsSection}>
+              <View style={styles.irnDetailsCard}>
+                <View style={styles.irnDetailRow}>
+                  <Text style={styles.irnDetailLabel}>IRN No:</Text>
+                  <Text style={styles.irnDetailValue}>
+                    {invoiceData.eInvoiceDetails.irnNo.replace(
+                      'IRN No : ',
+                      '',
+                    ) || 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.irnDetailRow}>
+                  <Text style={styles.irnDetailLabel}>ACK No:</Text>
+                  <Text style={styles.irnDetailValue}>
+                    {invoiceData.eInvoiceDetails.acknowledgment
+                      .split('Ack No : ')[1]
+                      ?.split(' Ack Date')[0] || 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.irnDetailRow}>
+                  <Text style={styles.irnDetailLabel}>ACK Date:</Text>
+                  <Text style={styles.irnDetailValue}>
+                    {formatDate(
+                      invoiceData.eInvoiceDetails.acknowledgment.split(
+                        'Ack Date : ',
+                      )[1],
+                    ) || 'N/A'}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -1118,15 +1232,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   sectionContainer: {
-    padding: 16, // Reduced from 20
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
   sectionTitle: {
-    fontSize: 16, // Reduced from 18
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12, // Reduced from 16
+    marginBottom: 12,
+  },
+  sectionPlanContainer: {
+    marginBottom: 16,
+  },
+  sectionPlanTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#63A1D8',
+    marginBottom: 8,
+    marginLeft: 8,
   },
   infoGrid: {
     flexDirection: 'row',
@@ -1237,7 +1361,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
-  // Add new styles for the SAC Code Summary
   sacCodeContainer: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -1259,18 +1382,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   sacCodeCell: {
-    padding: 8, // Reduced from 10
+    padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 70,
     borderRightWidth: 1,
     borderRightColor: '#e0e0e0',
-    height: 36, // Set explicit height for consistency
+    height: 36,
   },
   sacCodeHeader: {
     backgroundColor: '#63A1D8',
-    padding: 8, // Reduced from 12
-    height: 36, // Set explicit height to match total row
+    padding: 8,
+    height: 36,
   },
   sacCodeHeaderText: {
     color: '#fff',
@@ -1285,9 +1408,7 @@ const styles = StyleSheet.create({
   },
   sacCodeTotalRow: {
     flexDirection: 'row',
-    // backgroundColor: '#94b7d6',
-    paddingVertical: 0, // Reduced from 10
-    height: 34, // Set explicit height to match other rows
+    height: 34,
   },
   sacCodeTotalText: {
     fontSize: 12,
@@ -1304,7 +1425,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginTop: 2,
   },
   summaryLabel: {
     fontSize: 14,
@@ -1353,22 +1474,23 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 20,
   },
+  bankDetailsCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 6,
+    marginBottom: 20,
+  },
   termText: {
     fontSize: 13,
     color: '#666',
     lineHeight: 20,
     marginBottom: 8,
   },
-  additionalInfoContainer: {
-    padding: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-  },
-  additionalInfoText: {
-    fontSize: 12,
-    color: '#555',
-    marginBottom: 4,
+  bankDetailText: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 8,
   },
   qrIrnContainer: {
     marginTop: 20,
@@ -1410,24 +1532,8 @@ const styles = StyleSheet.create({
     flex: 0.75,
     paddingLeft: 15,
   },
-  irnDetailsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
   irnDetailsCard: {
-    // backgroundColor: '#fff',
-    borderRadius: 8,
     padding: 12,
-    // elevation: 2,
-    // shadowColor: '#000',
-    // shadowOffset: {
-    //   width: 0,
-    //   height: 1,
-    // },
-    // shadowOpacity: 0.2,
-    // shadowRadius: 1.41,
   },
   irnDetailRow: {
     marginBottom: 8,
@@ -1444,9 +1550,27 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     flexWrap: 'wrap',
   },
-  qrCodeContainer: {
-    marginTop: 20,
-    alignItems: 'center',
+  amountInWordsContainer: {
+    marginTop: 14,
+    marginBottom: 12,
+    paddingHorizontal: 5, // Match padding with totalRow for consistency
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#dee2e6',
+  },
+  amountInWordsLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  amountInWordsValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    textAlign: 'left',
+    flexWrap: 'wrap', // Ensure text wraps properly
+    lineHeight: 20, // Improve readability
   },
 });
 

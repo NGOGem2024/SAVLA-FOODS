@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
 
   //OrderHistory&Pending Flow
   GET_PLACEORDER_DETAILS: `${API_BASE_URL}/order/placeOrder`,
+  GET_PENDING_ORDERS_WITH_STATUS: `${API_BASE_URL}/order/getPendingOrderswithstatus`,
   GET_ORDER_HISTORY: `${API_BASE_URL}/order/getOrderHistory`,
   GET_PENDING_ORDERS: `${API_BASE_URL}/order/getPendingOrders`,
   UPDATE_PENDING_ORDER: `${API_BASE_URL}/order/updatePendingOrder`,

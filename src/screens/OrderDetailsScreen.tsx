@@ -1584,7 +1584,6 @@
 // });
 
 // export default OrderDetailsScreen;
-
 import React, {useEffect, useState, useCallback} from 'react';
 import {
   SafeAreaView,
@@ -1677,6 +1676,62 @@ const OrderDetailsScreen = ({
   const [cancelRemark, setCancelRemark] = useState('');
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
 
+  // Format current date for API call
+  const getCurrentDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  };
+
+  // Function to fetch pending orders with status
+  const fetchPendingOrders = useCallback(async () => {
+    if (!customerID) {
+      console.warn('Cannot fetch pending orders: Missing customerID');
+      return;
+    }
+
+    try {
+      const currentDate = getCurrentDate();
+      const response = await axios.get(
+        `${API_ENDPOINTS.GET_PENDING_ORDERS_WITH_STATUS}?customer_id=${customerID}&fromDate=${currentDate}&toDate=${currentDate}`,
+        {headers: DEFAULT_HEADERS, timeout: 5000},
+      );
+
+      if (response.data.success && response.data.data.orders) {
+        const orders = response.data.data.orders;
+        // Check if current order is in the list with status NEW
+        const currentOrder = orders.find(
+          (o: Order) => o.orderId === order.orderId && o.status === 'NEW',
+        );
+
+        if (currentOrder) {
+          setOrder(currentOrder);
+          setOrderItems(currentOrder.items || []);
+          showToast('Order has been approved!', 'success');
+          setTimeout(() => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{name: 'PendingOrdersScreen'}],
+              }),
+            );
+          }, 1500);
+        }
+      } else {
+        console.warn('Invalid response format:', response.data);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(
+          'Error fetching pending orders:',
+          error.message,
+          error.response?.data,
+        );
+      } else {
+        console.error('Unexpected error fetching pending orders:', error);
+      }
+    }
+  }, [customerID, order.orderId, navigation]);
+
   // Function to fetch order status
   const fetchOrderStatus = useCallback(async () => {
     if (!customerID || !order.orderId) {
@@ -1684,8 +1739,7 @@ const OrderDetailsScreen = ({
       return;
     }
 
-    // Skip polling if endpoint is not defined
-    if (!API_ENDPOINTS.GET_PLACEORDER_DETAILS) {
+    if (!API_ENDPOINTS.GET_PENDING_ORDERS) {
       console.warn(
         'GET_PLACEORDER_DETAILS endpoint is not defined in API_ENDPOINTS',
       );
@@ -1694,7 +1748,7 @@ const OrderDetailsScreen = ({
 
     try {
       const response = await axios.get(
-        `${API_ENDPOINTS.GET_PLACEORDER_DETAILS}?orderId=${order.orderId}&customerId=${customerID}`,
+        `${API_ENDPOINTS.GET_PENDING_ORDERS}?orderId=${order.orderId}&customerId=${customerID}`,
         {headers: DEFAULT_HEADERS, timeout: 5000},
       );
 
@@ -1703,7 +1757,6 @@ const OrderDetailsScreen = ({
         setOrder(updatedOrder);
         setOrderItems(updatedOrder.items || []);
 
-        // If status changed to NEW, navigate to PendingOrdersScreen
         if (updatedOrder.status === 'NEW') {
           showToast('Order has been approved!', 'success');
           setTimeout(() => {
@@ -1735,29 +1788,30 @@ const OrderDetailsScreen = ({
       } else {
         console.error('Unexpected error fetching order status:', error);
       }
-      // Don't show toast for polling errors to avoid spamming
     }
   }, [customerID, order.orderId, navigation]);
 
-  // Polling effect for status updates
+  // Polling effect for both APIs
   useEffect(() => {
-    // Only poll if status is PENDING FOR APPROVAL and endpoint is defined
     if (
       order.status !== 'PENDING FOR APPROVAL' ||
-      !API_ENDPOINTS.GET_PLACEORDER_DETAILS
+      !API_ENDPOINTS.GET_PLACEORDER_DETAILS ||
+      !API_ENDPOINTS.GET_PENDING_ORDERS_WITH_STATUS
     ) {
       return;
     }
 
     const intervalId = setInterval(() => {
       fetchOrderStatus();
+      fetchPendingOrders();
     }, 5000); // Poll every 5 seconds
 
-    // Initial fetch
+    // Initial fetches
     fetchOrderStatus();
+    fetchPendingOrders();
 
     return () => clearInterval(intervalId);
-  }, [fetchOrderStatus, order.status]);
+  }, [fetchOrderStatus, fetchPendingOrders, order.status]);
 
   // Update items when navigation focuses
   useEffect(() => {

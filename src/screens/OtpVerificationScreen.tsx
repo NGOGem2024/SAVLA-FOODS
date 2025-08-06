@@ -225,7 +225,7 @@ const OtpVerificationScreen: React.FC<{
       console.log('📤 Response received:', response.data);
 
       if (response.data?.output) {
-        const {token, CustomerID, DisplayName, CustomerGroupID} =
+        const {token, CustomerID, DisplayName, CustomerGroupID, RAR} =
           response.data.output;
 
         // Update context
@@ -234,23 +234,29 @@ const OtpVerificationScreen: React.FC<{
         await setSecureItem('customerID', CustomerID.toString());
 
         console.log('🟢 Received Token:', token);
+        console.log('🟢 Received RAR:', RAR);
+
         if (!token) {
           console.error('❌ Token is undefined or empty!');
           Alert.alert('Error', 'Authentication failed. No token received.');
           return;
         }
 
-        // Store Token in Keychain
+        // Store Token and RAR in Keychain
         await Promise.all([
           setSecureItem('userToken', token),
           setSecureItem('customerID', CustomerID.toString()),
           setSecureItem('Disp_name', DisplayName),
           setSecureItem('FK_CUST_GROUP_ID', CustomerGroupID.toString()),
+          setSecureItem('RAR', RAR || ''), // Store RAR value
         ]);
 
         // Also check that Keychain is working properly
         const storedID = await getSecureItem('customerID');
+        const storedRAR = await getSecureItem('RAR');
         console.log('Stored customerID in secure storage:', storedID);
+        console.log('Stored RAR in secure storage:', storedRAR);
+
         // Verify Token Storage
         const storedToken = await getSecureItem('userToken');
         console.log('📌 Token Stored in secure storage:', storedToken);
@@ -292,6 +298,7 @@ const OtpVerificationScreen: React.FC<{
       setIsLoading(false);
     }
   };
+
   return (
     <View style={styles.container}>
       {/* Fixed Background Image */}

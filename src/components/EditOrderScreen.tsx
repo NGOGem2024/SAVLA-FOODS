@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -15,11 +15,11 @@ import {
   Modal,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import {RouteProp} from '@react-navigation/native';
+import {CommonActions, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import axios from 'axios';
 import {useCustomer} from '../contexts/DisplayNameContext';
-import {API_ENDPOINTS} from '../config/api.config';
+import {API_ENDPOINTS, DEFAULT_HEADERS} from '../config/api.config';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 interface OrderItem {
@@ -31,8 +31,8 @@ interface OrderItem {
   itemMarks: string;
   vakalNo: string;
   requestedQty: number;
-  QUANTITY: number; // Changed from Quantity to QUANTITY to match OrderDetailsScreen
-  netQuantity: number; // From API AVAILABLE_QTY
+  QUANTITY: number;
+  netQuantity: number;
   status: string;
   unitName?: string;
 }
@@ -83,7 +83,7 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
       const date = order.deliveryDate
         ? new Date(order.deliveryDate)
         : new Date();
-      date.setHours(0, 0, 0, 0); // Normalize to midnight
+      date.setHours(0, 0, 0, 0);
       return date;
     } catch (e) {
       console.error('Error parsing deliveryDate:', e);
@@ -110,19 +110,152 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
     useState(false);
   const [exceededItem, setExceededItem] = useState<OrderItem | null>(null);
 
+  // Format current date for API call
+  const getCurrentDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  };
+
+  // Function to fetch pending orders with status
+  const fetchPendingOrders = useCallback(async () => {
+    if (!customerID) {
+      console.warn('Cannot fetch pending orders: Missing customerID');
+      return;
+    }
+
+    try {
+      const currentDate = getCurrentDate();
+      const response = await axios.get(
+        `${API_ENDPOINTS.GET_PENDING_ORDERS_WITH_STATUS}?customer_id=${customerID}&fromDate=${currentDate}&toDate=${currentDate}`,
+        {headers: DEFAULT_HEADERS, timeout: 5000},
+      );
+
+      if (response.data.success && response.data.data.orders) {
+        const orders = response.data.data.orders;
+        const currentOrder = orders.find(
+          (o: Order) => o.orderId === order.orderId && o.status === 'NEW',
+        );
+
+        if (currentOrder) {
+          setOrderItems(currentOrder.items || []);
+          showToast('Order has been approved!', 'success');
+          setTimeout(() => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{name: NAVIGATION_CONSTANTS.PENDING_ORDERS}],
+              }),
+            );
+          }, 1500);
+        }
+      } else {
+        console.warn('Invalid response format:', response.data);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(
+          'Error fetching pending orders:',
+          error.message,
+          error.response?.data,
+        );
+      } else {
+        console.error('Unexpected error fetching pending orders:', error);
+      }
+    }
+  }, [customerID, order.orderId, navigation]);
+
+  // Function to fetch order status
+  const fetchOrderStatus = useCallback(async () => {
+    if (!customerID || !order.orderId) {
+      console.warn('Cannot fetch order status: Missing customerID or orderId');
+      return;
+    }
+
+    if (!API_ENDPOINTS.GET_PENDING_ORDERS) {
+      console.warn(
+        'GET_PLACEORDER_DETAILS endpoint is not defined in API_ENDPOINTS',
+      );
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `${API_ENDPOINTS.GET_PENDING_ORDERS}?orderId=${order.orderId}&customerId=${customerID}`,
+        {headers: DEFAULT_HEADERS, timeout: 5000},
+      );
+
+      if (response.data.success && response.data.data.order) {
+        const updatedOrder = response.data.data.order;
+        setOrderItems(updatedOrder.items || []);
+
+        if (updatedOrder.status === 'NEW') {
+          showToast('Order has been approved!', 'success');
+          setTimeout(() => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{name: NAVIGATION_CONSTANTS.PENDING_ORDERS}],
+              }),
+            );
+          }, 1500);
+        }
+      } else {
+        console.warn('Invalid response format:', response.data);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          console.error(
+            'Order details endpoint not found. Please check API_ENDPOINTS.GET_ORDER_DETAILS:',
+            API_ENDPOINTS.GET_PENDING_ORDERS,
+          );
+        } else {
+          console.error(
+            'Error fetching order status:',
+            error.message,
+            error.response?.data,
+          );
+        }
+      } else {
+        console.error('Unexpected error fetching order status:', error);
+      }
+    }
+  }, [customerID, order.orderId, navigation]);
+
+  // Polling effect for both APIs
+  useEffect(() => {
+    if (
+      order.status !== 'PENDING FOR APPROVAL' ||
+      !API_ENDPOINTS.GET_PLACEORDER_DETAILS ||
+      !API_ENDPOINTS.GET_PENDING_ORDERS_WITH_STATUS
+    ) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      fetchOrderStatus();
+      fetchPendingOrders();
+    }, 5000); // Poll every 5 seconds
+
+    // Initial fetches
+    fetchOrderStatus();
+    fetchPendingOrders();
+
+    return () => clearInterval(intervalId);
+  }, [fetchOrderStatus, fetchPendingOrders, order.status]);
+
   useEffect(() => {
     console.log('Order items received:', order.items);
     const mappedItems = order.items.map(item => {
       const mappedItem = {
         ...item,
-        // Map both possible property names to ensure compatibility
-        QUANTITY: item.QUANTITY ?? item.Quantity ?? 0,
+        QUANTITY: item.QUANTITY ?? item.QUANTITY ?? 0,
         netQuantity: item.AVAILABLE_QTY ?? item.netQuantity ?? 0,
         requestedQty: item.requestedQty ?? 0,
         unitName: item.unitName ?? '',
-        lotNo: String(item.lotNo || ''), // Ensure lotNo is string
-        detailId: Number(item.detailId), // Ensure number
-        itemId: Number(item.itemId), // Ensure number
+        lotNo: String(item.lotNo || ''),
+        detailId: Number(item.detailId),
+        itemId: Number(item.itemId),
       };
       console.log(`Mapped item ${item.itemName}:`, {
         QUANTITY: mappedItem.QUANTITY,
@@ -187,9 +320,9 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
   const handleConfirm = (date: Date) => {
     hideDatePicker();
     if (!date) return;
-    date.setHours(0, 0, 0, 0); // Normalize to midnight
+    date.setHours(0, 0, 0, 0);
     setSelectedDate(date);
-    const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const formattedDate = date.toISOString().split('T')[0];
     setFormData(prev => ({...prev, deliveryDate: formattedDate}));
     setValidationErrors(prev => ({...prev, deliveryDate: ''}));
   };
@@ -285,7 +418,6 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
       ...prev,
       requestedQty: {...prev.requestedQty, [item.itemId]: qtyError},
     }));
-    // Use QUANTITY instead of Quantity for comparison
     if (numValue > item.QUANTITY) {
       setExceededItem(item);
       setQuantityExceedModalVisible(true);

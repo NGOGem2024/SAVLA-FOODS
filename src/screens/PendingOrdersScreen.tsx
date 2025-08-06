@@ -209,67 +209,14 @@ const PendingOrdersScreen = () => {
       // Extract date parts from string
       let year, month, day;
 
-      // For YYYY-MM-DD format
-      if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        [year, month, day] = dateString.split('-');
-
-        // Add 1 to the day to fix the timezone offset issue
-        let monthIndex = parseInt(month, 10) - 1;
-        let dayNum = parseInt(day, 10) + 1;
-        let yearNum = parseInt(year, 10);
-
-        // Handle month/year rollover if day exceeds month length
-        const daysInMonth = new Date(yearNum, monthIndex + 1, 0).getDate();
-        if (dayNum > daysInMonth) {
-          dayNum = 1;
-          if (monthIndex === 11) {
-            monthIndex = 0;
-            yearNum++;
-          } else {
-            monthIndex++;
-          }
-        }
-
-        // Convert month number to month name
-        const monthNames = [
-          'January',
-          'February',
-          'March',
-          'April',
-          'May',
-          'June',
-          'July',
-          'August',
-          'September',
-          'October',
-          'November',
-          'December',
-        ];
-
-        // Format the date manually without creating a Date object
-        return `${monthNames[monthIndex]} ${dayNum}, ${yearNum}`;
-      }
-      // For ISO format with time component
-      else if (dateString.includes('T')) {
+      // For YYYY-MM-DD format or ISO format with time component
+      if (dateString.match(/^\d{4}-\d{2}-\d{2}$/) || dateString.includes('T')) {
         const [datePart] = dateString.split('T');
         [year, month, day] = datePart.split('-');
 
-        // Add 1 to the day to fix the timezone offset issue
-        let monthIndex = parseInt(month, 10) - 1;
-        let dayNum = parseInt(day, 10) + 1;
-        let yearNum = parseInt(year, 10);
-
-        // Handle month/year rollover if day exceeds month length
-        const daysInMonth = new Date(yearNum, monthIndex + 1, 0).getDate();
-        if (dayNum > daysInMonth) {
-          dayNum = 1;
-          if (monthIndex === 11) {
-            monthIndex = 0;
-            yearNum++;
-          } else {
-            monthIndex++;
-          }
-        }
+        // Parse month and year
+        const monthIndex = parseInt(month, 10) - 1;
+        const yearNum = parseInt(year, 10);
 
         // Convert month number to month name
         const monthNames = [
@@ -287,18 +234,115 @@ const PendingOrdersScreen = () => {
           'December',
         ];
 
-        // Format the date manually without creating a Date object
-        return `${monthNames[monthIndex]} ${dayNum}, ${yearNum}`;
+        // Format the date without modifying the day
+        return `${monthNames[monthIndex]} ${parseInt(day, 10)}, ${yearNum}`;
       }
-      // Invalid format
-      else {
-        return dateString;
-      }
+
+      // Return original string if format is invalid
+      return dateString;
     } catch (error) {
       console.log('Error formatting date:', error, dateString);
       return dateString;
     }
   };
+
+  // const formatDate = (dateString: string) => {
+  //   try {
+  //     if (!dateString) return '';
+
+  //     // Extract date parts from string
+  //     let year, month, day;
+
+  //     // For YYYY-MM-DD format
+  //     if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+  //       [year, month, day] = dateString.split('-');
+
+  //       // Add 1 to the day to fix the timezone offset issue
+  //       let monthIndex = parseInt(month, 10) - 1;
+  //       let dayNum = parseInt(day, 10) + 1;
+  //       let yearNum = parseInt(year, 10);
+
+  //       // Handle month/year rollover if day exceeds month length
+  //       const daysInMonth = new Date(yearNum, monthIndex + 1, 0).getDate();
+  //       if (dayNum > daysInMonth) {
+  //         dayNum = 1;
+  //         if (monthIndex === 11) {
+  //           monthIndex = 0;
+  //           yearNum++;
+  //         } else {
+  //           monthIndex++;
+  //         }
+  //       }
+
+  //       // Convert month number to month name
+  //       const monthNames = [
+  //         'January',
+  //         'February',
+  //         'March',
+  //         'April',
+  //         'May',
+  //         'June',
+  //         'July',
+  //         'August',
+  //         'September',
+  //         'October',
+  //         'November',
+  //         'December',
+  //       ];
+
+  //       // Format the date manually without creating a Date object
+  //       return `${monthNames[monthIndex]} ${dayNum}, ${yearNum}`;
+  //     }
+  //     // For ISO format with time component
+  //     else if (dateString.includes('T')) {
+  //       const [datePart] = dateString.split('T');
+  //       [year, month, day] = datePart.split('-');
+
+  //       // Add 1 to the day to fix the timezone offset issue
+  //       let monthIndex = parseInt(month, 10) - 1;
+  //       let dayNum = parseInt(day, 10) + 1;
+  //       let yearNum = parseInt(year, 10);
+
+  //       // Handle month/year rollover if day exceeds month length
+  //       const daysInMonth = new Date(yearNum, monthIndex + 1, 0).getDate();
+  //       if (dayNum > daysInMonth) {
+  //         dayNum = 1;
+  //         if (monthIndex === 11) {
+  //           monthIndex = 0;
+  //           yearNum++;
+  //         } else {
+  //           monthIndex++;
+  //         }
+  //       }
+
+  //       // Convert month number to month name
+  //       const monthNames = [
+  //         'January',
+  //         'February',
+  //         'March',
+  //         'April',
+  //         'May',
+  //         'June',
+  //         'July',
+  //         'August',
+  //         'September',
+  //         'October',
+  //         'November',
+  //         'December',
+  //       ];
+
+  //       // Format the date manually without creating a Date object
+  //       return `${monthNames[monthIndex]} ${dayNum}, ${yearNum}`;
+  //     }
+  //     // Invalid format
+  //     else {
+  //       return dateString;
+  //     }
+  //   } catch (error) {
+  //     console.log('Error formatting date:', error, dateString);
+  //     return dateString;
+  //   }
+  // };
 
   // const handleViewDetails = (order: PendingOrder) => {
   //   // Use "as any" to bypass the type checking since the component
