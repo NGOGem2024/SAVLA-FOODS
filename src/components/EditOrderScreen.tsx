@@ -72,12 +72,19 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
   const {order} = route.params;
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const sanitizeString = (input: string | null | undefined): string => {
+    if (!input) return '';
+    // Remove invalid or unwanted characters (e.g., ¿)
+    return input.replace(/[^\x20-\x7E]/g, ''); // Keep only printable ASCII characters
+  };
+
   const [formData, setFormData] = useState({
     transporterName: order.transporterName || '',
     deliveryDate: order.deliveryDate || new Date().toISOString().split('T')[0],
     remarks: order.remarks || '',
-    deliveryAddress: order.deliveryAddress || '',
+    deliveryAddress: sanitizeString(order.deliveryAddress),
   });
+
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     try {
       const date = order.deliveryDate
@@ -380,7 +387,6 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
     if (qty < 0) return 'Quantity must be greater than zero';
     return '';
   };
-
   const handleTransporterNameChange = (
     field: 'name' | 'vehicleNo' | 'shopNo',
     text: string,
@@ -431,6 +437,9 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
 
   const validateForm = () => {
     const deliveryDateError = validateDeliveryDate(formData.deliveryDate);
+    const transporterNameError = validateTransporterName(
+      transporterFields.name,
+    ); // Validate only the 'name' field
     const qtyErrors: Record<number, string> = {};
     let hasQtyError = false;
     orderItems.forEach(item => {
@@ -446,12 +455,12 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
     });
     setValidationErrors(prev => ({
       ...prev,
+      transporterName: transporterNameError,
       deliveryDate: deliveryDateError,
       requestedQty: qtyErrors,
     }));
-    return !deliveryDateError && !hasQtyError;
+    return !transporterNameError && !deliveryDateError && !hasQtyError;
   };
-
   const showToast = (
     message: string,
     type: 'success' | 'error' = 'success',
@@ -533,7 +542,6 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
       setIsLoading(false);
     }
   };
-
   const submitOrderUpdate = async (deliveryDate: string) => {
     const combinedTransporterName = [
       transporterFields.name,
@@ -542,6 +550,13 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
     ]
       .filter(part => part)
       .join(' | ');
+    if (!transporterFields.name.trim()) {
+      setValidationErrors(prev => ({
+        ...prev,
+        transporterName: 'Transporter name is required',
+      }));
+      throw new Error('Transporter name is required');
+    }
     const requestPayload = {
       orderId: Number(order.orderId),
       customerID: Number(customerID),
@@ -667,7 +682,9 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
                   key={field}
                   style={[
                     styles.textInput,
-                    validationErrors.transporterName && styles.inputError,
+                    field === 'name' &&
+                      validationErrors.transporterName &&
+                      styles.inputError, // Apply error style only to 'name' field
                   ]}>
                   <MaterialIcons
                     name={
@@ -704,7 +721,6 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
                 </Text>
               )}
             </View>
-
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Delivery Location</Text>
               <View style={styles.textInput}>
@@ -714,6 +730,7 @@ const EditOrderScreen = ({route, navigation}: EditOrderScreenProps) => {
                   color="#6B7280"
                   style={styles.inputIcon}
                 />
+
                 <TextInput
                   style={styles.input}
                   value={formData.deliveryAddress}

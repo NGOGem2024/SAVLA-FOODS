@@ -158,6 +158,8 @@ interface SubCategoryItem {
   SUBCATDESC: string;
   CATEGORY_IMAGE_NAME?: string;
   SUBCATEGORY_IMAGE_NAME?: string;
+  available: boolean; // Added available property
+  name: string; // Added name property
 }
 
 interface ErrorResponse {
@@ -247,6 +249,7 @@ const StockReportScreen: React.FC = () => {
   const [isScrollingToResults, setIsScrollingToResults] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const resultsRef = useRef<View>(null);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   // Zero Stock checkbox state
   const [isZeroStock, setIsZeroStock] = useState(false);
@@ -362,37 +365,72 @@ const StockReportScreen: React.FC = () => {
     }
   }, [stockData]);
 
-  // Fetch subcategories from API
+  // Fetch subcategories from StockCategorySubAvailability or ZeroStockCatSubAvailability API
   useEffect(() => {
     const fetchSubCategories = async () => {
       try {
         setSubCategoryLoading(true);
 
         const customerID = await getSecureOrAsyncItem('customerID');
-        if (!customerID) {
-          console.error('Customer ID not found');
+        const customerName = await getSecureOrAsyncItem('Disp_name');
+        if (!customerID || !customerName) {
+          console.error('Customer ID or Name not found');
           return;
         }
 
-        const response = await axios.post(
-          API_ENDPOINTS.ITEM_CATEGORIES,
-          {CustomerID: customerID},
-          {headers: DEFAULT_HEADERS},
+        // Use current date range or fallback
+        const from = fromDate ? formatApiDate(fromDate) : null;
+        const to = toDate ? formatApiDate(toDate) : null;
+
+        if (!from || !to) {
+          setSubCategories([]);
+          setSubCategoryLoading(false);
+          console.log(
+            '[SubCategory API] Skipped fetch: fromDate or toDate not selected.',
+          );
+          return;
+        }
+
+        const payload = {
+          customerID: Number(customerID),
+          customerName: customerName,
+          lotNo: null,
+          vakaNo: null,
+          itemSubCategory: null,
+          itemMarks: null,
+          unit: null,
+          fromDate: from,
+          toDate: to,
+          qtyLessThan: null,
+        };
+
+        const endpoint = isZeroStock
+          ? API_ENDPOINTS.GET_ZERO_CATEGORIES
+          : API_ENDPOINTS.GET_STOCK_CATEGORIES;
+
+        console.log('[SubCategory API] Using endpoint:', endpoint);
+        console.log(
+          '[SubCategory API] Payload:',
+          JSON.stringify(payload, null, 2),
         );
 
-        if (
-          response.data &&
-          response.data.output &&
-          Array.isArray(response.data.output)
-        ) {
-          setSubCategories(response.data.output);
+        const response = await axios.post(endpoint, payload, {
+          headers: DEFAULT_HEADERS,
+        });
+
+        console.log('[SubCategory API] Response:', response.data);
+
+        if (response.data && Array.isArray(response.data.allSubCategories)) {
+          setSubCategories(response.data.allSubCategories);
         } else {
+          setSubCategories([]);
           console.error(
             'Invalid response format for subcategories:',
             response.data,
           );
         }
       } catch (error) {
+        setSubCategories([]);
         console.error('Error fetching subcategories:', error);
       } finally {
         setSubCategoryLoading(false);
@@ -400,7 +438,8 @@ const StockReportScreen: React.FC = () => {
     };
 
     fetchSubCategories();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromDate, toDate, isZeroStock]);
 
   // Fetch display name and customer ID
   useEffect(() => {
@@ -431,14 +470,18 @@ const StockReportScreen: React.FC = () => {
     {label: displayName, value: displayName},
   ];
 
-  // Update item subcategory options to use API data
-  const itemSubCategoryOptions = subCategories
-    .slice()
-    .sort((a, b) => a.SUBCATDESC.localeCompare(b.SUBCATDESC))
-    .map(item => ({
-      label: item.SUBCATDESC,
-      value: item.SUBCATDESC, // Use description as value for API
-    }));
+  // Update item subcategory options to use API data (with disabled/greyed-out logic)
+  const itemSubCategoryOptions =
+    !fromDate || !toDate
+      ? [{label: 'Select From and To Date first', value: '', disabled: true}]
+      : subCategories
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(item => ({
+            label: item.name,
+            value: item.name, // Use name as value for selection
+            disabled: item.available === false,
+          }));
 
   const unitOptions = [
     {label: 'D-39', value: 'D-39'},
@@ -454,6 +497,8 @@ const StockReportScreen: React.FC = () => {
       // Clear previous results when toggling
       setStockData([]);
       setAllStockData([]);
+      // Clear selected subcategories when toggling
+      setItemSubCategory([]);
 
       return newState;
     });
@@ -575,14 +620,39 @@ const StockReportScreen: React.FC = () => {
       </View>
     );
   };
+  // Updated useEffect to scroll to results when data loads
+  useEffect(() => {
+    if (stockData.length > 0 && !isLoading) {
+      // Small delay to ensure the table is rendered
+      setTimeout(() => {
+        if (resultsRef.current && scrollViewRef.current) {
+          resultsRef.current.measureLayout(
+            scrollViewRef.current.getScrollableNode(),
+            (x, y) => {
+              // Scroll to the table with some offset from top
+              scrollViewRef.current?.scrollTo({
+                y: y + 20, // 20px offset from top
+                animated: true,
+              });
+            },
+            () => {
+              // Fallback if measureLayout fails
+              scrollViewRef.current?.scrollToEnd({animated: true});
+            },
+          );
+        }
+      }, 300); // Increased delay to ensure table is fully rendered
+    }
+  }, [stockData, isLoading]);
 
+  // Updated handleSearch function
   const handleSearch = async () => {
-    // Reset previous data and show loader immediately
+    setHasSearched(true); // Indicate that a search has been attempted
     setErrorMessage(null);
-    setIsScrollingToResults(true);
     setStockData([]); // Clear previous data immediately
     setAllStockData([]); // Clear previous data immediately
     setTotalRecords(0);
+    setIsScrollingToResults(true);
 
     setPagination({
       ...pagination,
@@ -596,17 +666,13 @@ const StockReportScreen: React.FC = () => {
         throw new Error('Customer ID not found. Please login again.');
       }
 
-      // Use the current state of isZeroStock to determine which API to call
       let fetchedData: StockReportItem[] = [];
       if (isZeroStock) {
-        // Call Zero Stock API
         fetchedData = (await fetchZeroStockItems()) || [];
       } else {
-        // Call Regular Stock Report API
         fetchedData = (await fetchStockReportItems()) || [];
       }
 
-      // Update pagination for the fetched data
       if (fetchedData.length > 0) {
         const totalPages = Math.ceil(
           fetchedData.length / pagination.itemsPerPage,
@@ -617,7 +683,6 @@ const StockReportScreen: React.FC = () => {
           totalPages: totalPages || 1,
         }));
 
-        // Set current page data - ensure we're using the latest data
         const startIndex = 0; // First page
         const endIndex = pagination.itemsPerPage;
         const paginatedData = fetchedData.slice(startIndex, endIndex);
@@ -755,7 +820,7 @@ const StockReportScreen: React.FC = () => {
 
   const handleClear = () => {
     console.log('Form cleared by user');
-    setCustomerName(displayName); // Reset to display name
+    setCustomerName(displayName);
     setLotNo('');
     setVakalNo('');
     setItemSubCategory([]);
@@ -771,7 +836,8 @@ const StockReportScreen: React.FC = () => {
     setErrorMessage(null);
     setTotalRecords(0);
     setIsScrollingToResults(false);
-    setIsZeroStock(false); // Reset zero stock checkbox
+    setIsZeroStock(false);
+    setHasSearched(false); // Reset search state
     setPagination({
       currentPage: 1,
       itemsPerPage: 50,
@@ -1454,9 +1520,33 @@ const StockReportScreen: React.FC = () => {
             </View>
           )}
 
+          {/* Empty state message - only shown when not loading, no data, and search was attempted */}
+          {/* {!isLoading &&
+            stockData.length === 0 &&
+            !errorMessage &&
+            hasSearched && (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataText}>
+                  No stock data available. Try adjusting your search criteria.
+                </Text>
+              </View>
+            )} */}
+
+          {/* Empty state message - only shown when not loading, no data, and search was attempted */}
+          {!isLoading &&
+            stockData.length === 0 &&
+            !errorMessage &&
+            hasSearched && (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataText}>
+                  No stock data available. Try adjusting your search criteria.
+                </Text>
+              </View>
+            )}
+
           {/* Table format results */}
           {!isLoading && stockData.length > 0 && (
-            <View style={styles.tableContainer}>
+            <View ref={resultsRef} style={styles.tableContainer}>
               <View style={styles.reportHeaderRight}>
                 <TouchableOpacity
                   style={[
@@ -1507,15 +1597,6 @@ const StockReportScreen: React.FC = () => {
           {errorMessage && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{errorMessage}</Text>
-            </View>
-          )}
-
-          {/* Empty state message - only shown when not loading and no data */}
-          {!isLoading && stockData.length === 0 && !errorMessage && (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataText}>
-                No stock data available. Try adjusting your search criteria.
-              </Text>
             </View>
           )}
 

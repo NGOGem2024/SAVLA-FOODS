@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import ProfileMenu from '../screens/ProfileMenu';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
+import {useAuthorization} from '../contexts/AuthorizationContext';
 
 const {width} = Dimensions.get('window');
 
@@ -31,10 +32,11 @@ const Header: React.FC<HeaderProps> = ({
 
   onAccountSwitch,
   onCartPress,
-  appVersion = 'v1.1',
+  appVersion = 'v1.2',
 }) => {
   const navigation = useNavigation<any>();
   const route = useRoute();
+  const {hasModuleAccess} = useAuthorization();
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -113,21 +115,23 @@ const Header: React.FC<HeaderProps> = ({
       </View>
 
       <View style={styles.rightSection}>
-        <TouchableOpacity onPress={onCartPress} style={styles.iconButton}>
-          <View style={styles.iconContainer}>
-            <Icon
-              name="shopping-cart"
-              size={25}
-              color="#63A1D8"
-              style={{fontFamily: 'MaterialIcons'}}
-            />
-            {cartItemCount > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
+        {hasModuleAccess(1) && (
+          <TouchableOpacity onPress={onCartPress} style={styles.iconButton}>
+            <View style={styles.iconContainer}>
+              <Icon
+                name="shopping-cart"
+                size={25}
+                color="#63A1D8"
+                style={{fontFamily: 'MaterialIcons'}}
+              />
+              {cartItemCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* <TouchableOpacity
           onPress={onAccountSwitch}

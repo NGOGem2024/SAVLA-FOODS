@@ -1,22 +1,23 @@
-//Multiselect.tsx
-import React, {useState, useMemo} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  FlatList,
-  StyleSheet,
-  SafeAreaView,
-  Platform,
-  Keyboard,
-  TextInput,
-} from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+// //Multiselect.tsx
+// import React, {useState, useMemo} from 'react';
+// import {
+//   View,
+//   Text,
+//   TouchableOpacity,
+//   Modal,
+//   FlatList,
+//   StyleSheet,
+//   SafeAreaView,
+//   Platform,
+//   Keyboard,
+//   TextInput,
+// } from 'react-native';
+// import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 // interface MultiSelectOption {
 //   label: string;
 //   value: string;
+//   disabled?: boolean; // Add disabled property
 // }
 
 // interface MultiSelectProps {
@@ -45,10 +46,15 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 //   // Filter options based on search query
 //   const filteredOptions = useMemo(() => {
-//     if (!searchQuery.trim()) return options;
-//     return options.filter(option =>
+//     if (!searchQuery.trim()) {
+//       console.log('Search cleared, showing all options:', options);
+//       return options;
+//     }
+//     const filtered = options.filter(option =>
 //       option.label.toLowerCase().includes(searchQuery.toLowerCase()),
 //     );
+//     console.log('Filtered options:', filtered);
+//     return filtered;
 //   }, [options, searchQuery]);
 
 //   // Get display text for selected items
@@ -77,7 +83,10 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //   };
 
 //   // Toggle selection of an item
-//   const toggleItem = (value: string) => {
+//   const toggleItem = (value: string, isDisabled: boolean) => {
+//     if (isDisabled) {
+//       return; // Prevent selection of disabled items
+//     }
 //     if (selectedValues.includes(value)) {
 //       onSelectChange(selectedValues.filter(v => v !== value));
 //     } else {
@@ -85,23 +94,25 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //     }
 //   };
 
-//   // Handle Select All functionality (based on filtered results)
+//   // Handle Select All functionality (only select enabled items)
 //   const handleSelectAll = () => {
-//     const filteredValues = filteredOptions.map(option => option.value);
+//     const filteredValues = filteredOptions
+//       .filter(option => !option.disabled) // Only include enabled options
+//       .map(option => option.value);
 //     const filteredSelectedValues = selectedValues.filter(value =>
 //       filteredValues.includes(value),
 //     );
 //     const allFilteredSelected =
-//       filteredSelectedValues.length === filteredOptions.length;
+//       filteredSelectedValues.length === filteredValues.length;
 
 //     if (allFilteredSelected) {
-//       // If all filtered items are selected, deselect them
+//       // If all filtered enabled items are selected, deselect them
 //       const remainingValues = selectedValues.filter(
 //         value => !filteredValues.includes(value),
 //       );
 //       onSelectChange(remainingValues);
 //     } else {
-//       // If not all filtered items are selected, select all filtered items
+//       // Select all enabled filtered items
 //       const newSelectedValues = [
 //         ...new Set([...selectedValues, ...filteredValues]),
 //       ];
@@ -109,10 +120,12 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //     }
 //   };
 
-//   // Check if all filtered items are selected
+//   // Check if all filtered enabled items are selected
 //   const isAllFilteredSelected = useMemo(() => {
 //     if (filteredOptions.length === 0) return false;
-//     const filteredValues = filteredOptions.map(option => option.value);
+//     const filteredValues = filteredOptions
+//       .filter(option => !option.disabled)
+//       .map(option => option.value);
 //     return filteredValues.every(value => selectedValues.includes(value));
 //   }, [filteredOptions, selectedValues]);
 
@@ -142,11 +155,30 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //   };
 
 //   const renderItem = ({item}: {item: MultiSelectOption}) => {
+//     // Debug logging for disabled items
+//     if (item.disabled) {
+//       console.log(
+//         `Rendering disabled item: ${item.label} - disabled: ${item.disabled}`,
+//       );
+//     }
+
 //     return (
 //       <TouchableOpacity
-//         style={styles.optionItem}
-//         onPress={() => toggleItem(item.value)}>
-//         <Text style={styles.optionText}>{item.label}</Text>
+//         style={[styles.optionItem, item.disabled && styles.disabledOption]}
+//         onPress={() => toggleItem(item.value, item.disabled || false)}
+//         disabled={item.disabled}>
+//         <View style={styles.optionContent}>
+//           <Text
+//             style={[
+//               styles.optionText,
+//               item.disabled && styles.disabledOptionText,
+//             ]}>
+//             {item.label}
+//           </Text>
+//           {item.disabled && (
+//             <Text style={styles.disabledIndicator}> (Unavailable)</Text>
+//           )}
+//         </View>
 //         <MaterialIcons
 //           name={
 //             selectedValues.includes(item.value)
@@ -154,7 +186,13 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //               : 'check-box-outline-blank'
 //           }
 //           size={24}
-//           color={selectedValues.includes(item.value) ? primaryColor : '#CBD5E0'}
+//           color={
+//             item.disabled
+//               ? '#E2E8F0' // Grey for disabled
+//               : selectedValues.includes(item.value)
+//               ? primaryColor
+//               : '#CBD5E0'
+//           }
 //         />
 //       </TouchableOpacity>
 //     );
@@ -218,9 +256,20 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //                   placeholder={searchPlaceholder}
 //                   placeholderTextColor="#94A3B8"
 //                   value={searchQuery}
-//                   onChangeText={setSearchQuery}
+//                   onChangeText={text => {
+//                     setSearchQuery(text);
+//                     console.log('Search query updated:', text); // Debug log
+//                   }}
+//                   onKeyPress={({nativeEvent}) => {
+//                     if (nativeEvent.key === 'Backspace' && searchQuery === '') {
+//                       console.log('Backspace pressed with empty input');
+//                       setSearchQuery(''); // Force empty state
+//                     }
+//                   }}
 //                   autoCapitalize="none"
 //                   autoCorrect={false}
+//                   returnKeyType="done" // Ensure keyboard has a "done" action
+//                   onSubmitEditing={() => Keyboard.dismiss()} // Dismiss keyboard on submit
 //                 />
 //                 {searchQuery.length > 0 && (
 //                   <TouchableOpacity
@@ -244,6 +293,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //             <FlatList
 //               data={filteredOptions}
 //               keyExtractor={item => item.value}
+//               extraData={searchQuery} // Ensure re-render on searchQuery change
 //               keyboardShouldPersistTaps="handled"
 //               keyboardDismissMode="on-drag"
 //               renderItem={renderItem}
@@ -265,6 +315,212 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 //     </View>
 //   );
 // };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     marginBottom: 8,
+//   },
+//   disabled: {
+//     opacity: 0.7,
+//   },
+//   inputContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     justifyContent: 'space-between',
+//     height: 44,
+//     paddingHorizontal: 12,
+//     borderWidth: 1,
+//     borderColor: '#E2E8F0',
+//     borderRadius: 8,
+//     backgroundColor: '#FFFFFF',
+//   },
+//   selectedText: {
+//     fontSize: 15,
+//     fontWeight: '500',
+//     flex: 1,
+//   },
+//   placeholderText: {
+//     fontSize: 14,
+//     flex: 1,
+//   },
+//   modalOverlay: {
+//     flex: 1,
+//     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+//   },
+//   modalContent: {
+//     flex: 1,
+//     backgroundColor: 'white',
+//     marginTop: 60,
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     ...Platform.select({
+//       ios: {
+//         shadowColor: '#000',
+//         shadowOffset: {width: 0, height: -3},
+//         shadowOpacity: 0.1,
+//         shadowRadius: 5,
+//       },
+//       android: {
+//         elevation: 5,
+//       },
+//     }),
+//   },
+//   modalHeader: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//     paddingHorizontal: 16,
+//     paddingVertical: 16,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#E2E8F0',
+//   },
+//   modalTitle: {
+//     fontSize: 18,
+//     fontWeight: '600',
+//     color: '#1A202C',
+//   },
+//   doneButton: {
+//     fontSize: 16,
+//     fontWeight: '600',
+//   },
+//   searchContainer: {
+//     paddingHorizontal: 16,
+//     paddingVertical: 12,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#F7FAFC',
+//   },
+//   searchInputContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     backgroundColor: '#F8FAFC',
+//     borderRadius: 12,
+//     paddingHorizontal: 12,
+//     height: 40,
+//     borderWidth: 1,
+//     borderColor: '#E2E8F0',
+//   },
+//   searchIcon: {
+//     marginRight: 8,
+//   },
+//   searchInput: {
+//     flex: 1,
+//     fontSize: 16,
+//     color: '#2D3748',
+//     paddingVertical: 0, // Remove default padding on Android
+//   },
+//   clearButton: {
+//     padding: 4,
+//     marginLeft: 8,
+//   },
+//   resultsContainer: {
+//     paddingHorizontal: 16,
+//     paddingVertical: 8,
+//     backgroundColor: '#F8FAFC',
+//   },
+//   resultsText: {
+//     fontSize: 12,
+//     color: '#64748B',
+//     fontWeight: '500',
+//   },
+//   optionsList: {
+//     paddingBottom: 20,
+//   },
+//   emptyList: {
+//     flexGrow: 1,
+//   },
+//   optionItem: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//     paddingVertical: 14,
+//     paddingHorizontal: 16,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#F7FAFC',
+//   },
+//   selectAllContainer: {
+//     backgroundColor: 'white', // Ensure background color for sticky header
+//   },
+//   selectAllItem: {
+//     backgroundColor: '#F8FAFC',
+//     borderBottomWidth: 0,
+//     paddingVertical: 14,
+//     paddingHorizontal: 16,
+//     marginHorizontal: 0,
+//     borderRadius: 0,
+//   },
+//   separator: {
+//     height: 1,
+//     backgroundColor: '#E2E8F0',
+//     marginHorizontal: 16,
+//     marginTop: 4,
+//   },
+//   optionText: {
+//     fontSize: 16,
+//     color: '#2D3748',
+//   },
+//   selectAllText: {
+//     fontWeight: '600',
+//     color: '#1A202C',
+//     fontSize: 16,
+//   },
+//   emptyContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     paddingVertical: 60,
+//     paddingHorizontal: 32,
+//   },
+//   emptyText: {
+//     fontSize: 18,
+//     fontWeight: '600',
+//     color: '#4A5568',
+//     marginTop: 16,
+//     textAlign: 'center',
+//   },
+//   emptySubtext: {
+//     fontSize: 14,
+//     color: '#94A3B8',
+//     marginTop: 8,
+//     textAlign: 'center',
+//   },
+//   disabledOption: {
+//     opacity: 0.6, // More visible watermark effect for disabled options
+//     backgroundColor: '#F1F5F9', // Slightly different background for disabled
+//   },
+//   disabledOptionText: {
+//     color: '#94A3B8', // Greyed out text for disabled options
+//     // Removed italic styling to make disabled options appear normal
+//   },
+//   optionContent: {
+//     flex: 1,
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//   },
+//   disabledIndicator: {
+//     fontSize: 12,
+//     color: '#94A3B8',
+//     // Removed italic styling to make disabled indicator appear normal
+//     marginLeft: 4,
+//   },
+// });
+
+// export default MultiSelect;
+
+//Multiselect.tsx
+import React, {useState, useMemo} from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+  StyleSheet,
+  SafeAreaView,
+  Platform,
+  Keyboard,
+  TextInput,
+} from 'react-native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 interface MultiSelectOption {
   label: string;
@@ -298,10 +554,15 @@ const MultiSelect = ({
 
   // Filter options based on search query
   const filteredOptions = useMemo(() => {
-    if (!searchQuery.trim()) return options;
-    return options.filter(option =>
+    if (!searchQuery.trim()) {
+      console.log('Search cleared, showing all options:', options);
+      return options;
+    }
+    const filtered = options.filter(option =>
       option.label.toLowerCase().includes(searchQuery.toLowerCase()),
     );
+    console.log('Filtered options:', filtered);
+    return filtered;
   }, [options, searchQuery]);
 
   // Get display text for selected items
@@ -331,7 +592,9 @@ const MultiSelect = ({
 
   // Toggle selection of an item
   const toggleItem = (value: string, isDisabled: boolean) => {
-    if (isDisabled) return; // Prevent selection of disabled items
+    if (isDisabled) {
+      return; // Prevent selection of disabled items
+    }
     if (selectedValues.includes(value)) {
       onSelectChange(selectedValues.filter(v => v !== value));
     } else {
@@ -365,13 +628,24 @@ const MultiSelect = ({
     }
   };
 
-  // Check if all filtered enabled items are selected
+  // Check if all filtered enabled items are selected - FIXED VERSION
   const isAllFilteredSelected = useMemo(() => {
     if (filteredOptions.length === 0) return false;
+
     const filteredValues = filteredOptions
       .filter(option => !option.disabled)
       .map(option => option.value);
-    return filteredValues.every(value => selectedValues.includes(value));
+
+    // Return false if there are no enabled options OR if no items are selected at all
+    if (filteredValues.length === 0 || selectedValues.length === 0) {
+      return false;
+    }
+
+    // Check if all filtered enabled items are selected
+    return (
+      filteredValues.every(value => selectedValues.includes(value)) &&
+      filteredValues.length > 0
+    );
   }, [filteredOptions, selectedValues]);
 
   // Render Select All Header Component
@@ -400,18 +674,30 @@ const MultiSelect = ({
   };
 
   const renderItem = ({item}: {item: MultiSelectOption}) => {
+    // Debug logging for disabled items
+    if (item.disabled) {
+      console.log(
+        `Rendering disabled item: ${item.label} - disabled: ${item.disabled}`,
+      );
+    }
+
     return (
       <TouchableOpacity
         style={[styles.optionItem, item.disabled && styles.disabledOption]}
         onPress={() => toggleItem(item.value, item.disabled || false)}
         disabled={item.disabled}>
-        <Text
-          style={[
-            styles.optionText,
-            item.disabled && styles.disabledOptionText,
-          ]}>
-          {item.label}
-        </Text>
+        <View style={styles.optionContent}>
+          <Text
+            style={[
+              styles.optionText,
+              item.disabled && styles.disabledOptionText,
+            ]}>
+            {item.label}
+          </Text>
+          {item.disabled && (
+            <Text style={styles.disabledIndicator}> (Unavailable)</Text>
+          )}
+        </View>
         <MaterialIcons
           name={
             selectedValues.includes(item.value)
@@ -489,9 +775,20 @@ const MultiSelect = ({
                   placeholder={searchPlaceholder}
                   placeholderTextColor="#94A3B8"
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={text => {
+                    setSearchQuery(text);
+                    console.log('Search query updated:', text); // Debug log
+                  }}
+                  onKeyPress={({nativeEvent}) => {
+                    if (nativeEvent.key === 'Backspace' && searchQuery === '') {
+                      console.log('Backspace pressed with empty input');
+                      setSearchQuery(''); // Force empty state
+                    }
+                  }}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="done" // Ensure keyboard has a "done" action
+                  onSubmitEditing={() => Keyboard.dismiss()} // Dismiss keyboard on submit
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity
@@ -515,6 +812,7 @@ const MultiSelect = ({
             <FlatList
               data={filteredOptions}
               keyExtractor={item => item.value}
+              extraData={searchQuery} // Ensure re-render on searchQuery change
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               renderItem={renderItem}
@@ -705,11 +1003,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   disabledOption: {
-    opacity: 0.5, // Watermark effect for disabled options
-    backgroundColor: '#F7FAFC',
+    opacity: 0.6, // More visible watermark effect for disabled options
+    backgroundColor: '#F1F5F9', // Slightly different background for disabled
   },
   disabledOptionText: {
     color: '#94A3B8', // Greyed out text for disabled options
+    // Removed italic styling to make disabled options appear normal
+  },
+  optionContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  disabledIndicator: {
+    fontSize: 12,
+    color: '#94A3B8',
+    // Removed italic styling to make disabled indicator appear normal
+    marginLeft: 4,
   },
 });
 

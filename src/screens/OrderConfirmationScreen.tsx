@@ -140,12 +140,14 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
 
   // State for loading
   const [isLoading, setIsLoading] = useState(false);
+  // Add these state declarations with other useState calls
+  const [orderByError, setOrderByError] = useState('');
+  const [transporterNameError, setTransporterNameError] = useState('');
+  const [deliveryLocationError, setDeliveryLocationError] = useState('');
+  const [deliveryDateError, setDeliveryDateError] = useState('');
 
   // State for labor charges modal
   const [isLaborModalVisible, setIsLaborModalVisible] = useState(false);
-
-  // Add state for transporter name validation
-  const [transporterNameError, setTransporterNameError] = useState('');
 
   // Labor charges options
   const [laborCharges, setLaborCharges] = useState<LaborCharge[]>([
@@ -189,7 +191,6 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
   // Add this useEffect hook after other useEffect hooks
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Reset form state when screen comes into focus
       if (isOrderPlaced) {
         setOrderDetails({
           orderDate: formattedToday,
@@ -228,13 +229,14 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
         ]);
         setIsOrderPlaced(false);
         setSuccessData({
-          orderId: 0,
-          orderNo: '',
-          // ordersByUnit:'',
-          processedItems: [],
+          ordersByUnit: [],
           formattedTransporterName: '',
           selectedLabor: [],
         });
+        setOrderByError('');
+        setTransporterNameError('');
+        setDeliveryLocationError('');
+        setDeliveryDateError('');
       }
     });
 
@@ -322,17 +324,6 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
     }, 10);
   };
 
-  // Handle date picker
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || new Date();
-    setShowDatePicker(Platform.OS === 'ios');
-    setSelectedDate(currentDate);
-
-    // Format the date as YYYY-MM-DD
-    const formattedDate = currentDate.toISOString().split('T')[0];
-    setOrderDetails(prev => ({...prev, deliveryDate: formattedDate}));
-  };
-
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -370,74 +361,85 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
 
   // Modified function to handle transporter name change with validation
   const handleTransporterNameChange = (text: string) => {
-    // Only allow letters, spaces, and some common punctuation
-    const letterOnlyRegex = /^[a-zA-Z\s.',-]*$/;
-
-    // Update the state regardless, but set an error if invalid
     setTransporterDetails(prev => ({...prev, name: text}));
-
+    setTransporterNameError('');
+    const letterOnlyRegex = /^[a-zA-Z\s.',-]*$/;
     if (!letterOnlyRegex.test(text)) {
       setTransporterNameError(
         'Only letters, spaces, and common punctuation allowed',
       );
-    } else {
-      setTransporterNameError('');
     }
   };
 
+  const handleOrderByChange = (text: string) => {
+    setOrderBy(text);
+    setOrderByError('');
+  };
+
+  const handleDeliveryLocationChange = (text: string) => {
+    setOrderDetails(prev => ({...prev, CUST_DELIVERY_ADD: text}));
+    setDeliveryLocationError('');
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || new Date();
+    setShowDatePicker(Platform.OS === 'ios');
+    setSelectedDate(currentDate);
+    const formattedDate = currentDate.toISOString().split('T')[0];
+    setOrderDetails(prev => ({...prev, deliveryDate: formattedDate}));
+    setDeliveryDateError('');
+  };
+
   const handleSubmitOrder = async () => {
-    // Prevent resubmission if order is already placed
     if (isOrderPlaced) {
       setShowResubmissionModal(true);
       return;
     }
 
-    // Enhanced validation checks
+    setOrderByError('');
+    setTransporterNameError('');
+    setDeliveryLocationError('');
+    setDeliveryDateError('');
+
     let hasError = false;
-    let errorMessage =
-      'Please complete the following fields before proceeding:';
 
     if (!orderBy.trim()) {
-      errorMessage += '\nOrder Creator name is required';
+      setOrderByError('Order Creator name is required');
       hasError = true;
     }
 
     if (!transporterDetails.name.trim()) {
-      errorMessage += '\nTransporter Name is required';
+      setTransporterNameError('Transporter Name is required');
       hasError = true;
     } else if (!/^[a-zA-Z\s.',-]*$/.test(transporterDetails.name)) {
-      errorMessage +=
-        '\nTransporter Name can only contain letters, spaces, and common punctuation';
+      setTransporterNameError(
+        'Only letters, spaces, and common punctuation allowed',
+      );
       hasError = true;
     }
 
-    // Delivery Location validation
     if (!orderDetails.CUST_DELIVERY_ADD.trim()) {
-      errorMessage += '\nDelivery Location is required';
+      setDeliveryLocationError('Delivery Location is required');
       hasError = true;
     }
 
-    // Date validation
     if (!isValidDateFormat(orderDetails.deliveryDate)) {
-      errorMessage += '\nDelivery date must be in YYYY-MM-DD format';
+      setDeliveryDateError('Delivery date must be in YYYY-MM-DD format');
       hasError = true;
     } else if (!isValidDate(orderDetails.deliveryDate)) {
-      errorMessage += '\nInvalid delivery date';
+      setDeliveryDateError('Invalid delivery date');
       hasError = true;
     } else if (!isDeliveryDateValid(orderDetails.deliveryDate)) {
-      errorMessage += '\nDelivery date cannot be in the past';
+      setDeliveryDateError('Delivery date cannot be in the past');
       hasError = true;
     }
 
     if (hasError) {
-      setValidationMessage(errorMessage);
-      setShowValidationModal(true);
       return;
     }
 
     setIsLoading(true);
     try {
-      // Get selected labor charges
       const selectedLabor = laborCharges
         .filter(charge => charge.selected)
         .map(charge => ({
@@ -445,7 +447,6 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
           quantity: charge.appliedQuantity,
         }));
 
-      // Format transporter name with subfields
       const formattedTransporterName = getFormattedTransporterName();
 
       const orderPayload = {
@@ -458,7 +459,6 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
           ItemMarks: item.ITEM_MARKS || '',
           VakalNo: item.VAKAL_NO || '',
           UnitName: item.UNIT_NAME,
-          // UnitID: item.UNIT_ID || unitId,
         })),
         orderDate: orderDetails.orderDate,
         deliveryDate: orderDetails.deliveryDate,
@@ -483,9 +483,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
         API_ENDPOINTS.GET_PLACEORDER_DETAILS,
         orderPayload,
         {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: {'Content-Type': 'application/json'},
           timeout: 10000,
         },
       );
@@ -502,11 +500,8 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
           throw new Error('Missing order details in success response');
         }
 
-        // Process each order by unit
         const processedOrdersByUnit = ordersByUnit.map(unitOrder => {
-          // Map and filter the order items based on the current unit's items
           const unitItemIds = new Set(unitOrder.items.map(item => item.ItemID));
-
           const processedItems = orderItems
             .filter(item => unitItemIds.has(item.ITEM_ID))
             .map(item => ({
@@ -517,10 +512,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
               REMARK: orderDetails.remarks,
             }));
 
-          return {
-            ...unitOrder,
-            processedItems,
-          };
+          return {...unitOrder, processedItems};
         });
 
         setSuccessData({
@@ -528,7 +520,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
           formattedTransporterName: getFormattedTransporterName(),
           selectedLabor,
         });
-        setIsOrderPlaced(true); // Set order as placed
+        setIsOrderPlaced(true);
         setShowSuccessModal(true);
       } else {
         throw new Error(
@@ -593,24 +585,29 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
             </View>
             <View style={styles.field}>
               {/* <Text style={styles.fieldLabel}>Order By</Text> */}
-              <View style={styles.inputContainer}>
-                <MaterialIcons
-                  name="person"
-                  size={20}
-                  color="#718096"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[
-                    styles.fieldInput,
-                    styles.inputWithIcon,
-                    {fontSize: orderBy ? 16 : 13},
-                  ]}
-                  value={orderBy}
-                  onChangeText={setOrderBy}
-                  placeholder="Enter order creator name"
-                  placeholderTextColor={'grey'}
-                />
+              <View style={styles.field}>
+                <View style={styles.inputContainer}>
+                  <MaterialIcons
+                    name="person"
+                    size={20}
+                    color="#718096"
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[
+                      styles.fieldInput,
+                      styles.inputWithIcon,
+                      {fontSize: orderBy ? 16 : 13},
+                    ]}
+                    value={orderBy}
+                    onChangeText={handleOrderByChange}
+                    placeholder="Enter order creator name"
+                    placeholderTextColor={'grey'}
+                  />
+                </View>
+                {orderByError ? (
+                  <Text style={styles.errorText}>{orderByError}</Text>
+                ) : null}
               </View>
             </View>
             {/* Transporter Details Section */}
@@ -622,8 +619,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
             {/* Transporter Name */}
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>
-                Transporter Name
-                <Text style={{color: 'red'}}> *</Text>
+                Transporter Name <Text style={{color: 'red'}}> *</Text>
               </Text>
               <View style={styles.inputContainer}>
                 <Ionicons
@@ -636,7 +632,6 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
                   style={[styles.fieldInput, styles.inputWithIcon]}
                   value={transporterDetails.name}
                   onChangeText={handleTransporterNameChange}
-                  // placeholder="Enter transporter name"
                 />
               </View>
               {transporterNameError ? (
@@ -709,8 +704,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
             {/* Delivery Date */}
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>
-                Delivery Date
-                <Text style={{color: 'red'}}> *</Text>
+                Delivery Date <Text style={{color: 'red'}}> *</Text>
               </Text>
               <TouchableWithoutFeedback onPress={handleDateFieldTap}>
                 <View
@@ -728,6 +722,9 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
                   </View>
                 </View>
               </TouchableWithoutFeedback>
+              {deliveryDateError ? (
+                <Text style={styles.errorText}>{deliveryDateError}</Text>
+              ) : null}
               {showDatePicker && Platform.OS === 'android' && (
                 <DateTimePicker
                   testID="datePickerAndroid"
@@ -744,8 +741,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
             {/* Delivery Location Field */}
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>
-                Delivery Location
-                <Text style={{color: 'red'}}> *</Text>
+                Delivery Location <Text style={{color: 'red'}}> *</Text>
               </Text>
               <View style={styles.inputContainer}>
                 <MaterialIcons
@@ -757,17 +753,14 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
                 <TextInput
                   style={[styles.fieldInput, styles.inputWithIcon]}
                   value={orderDetails.CUST_DELIVERY_ADD}
-                  onChangeText={text =>
-                    setOrderDetails(prev => ({
-                      ...prev,
-                      CUST_DELIVERY_ADD: text,
-                    }))
-                  }
-                  // placeholder="Enter delivery location"
+                  onChangeText={handleDeliveryLocationChange}
                   multiline
                   numberOfLines={2}
                 />
               </View>
+              {deliveryLocationError ? (
+                <Text style={styles.errorText}>{deliveryLocationError}</Text>
+              ) : null}
             </View>
 
             {/* Remarks Field */}
@@ -1198,6 +1191,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 12,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 40,
   },
   // iOS date picker modal styles
   iosDatePickerModal: {

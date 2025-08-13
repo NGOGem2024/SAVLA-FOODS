@@ -1,29 +1,40 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import {Alert, Platform} from 'react-native';
 import {getSecureItem, setSecureItem} from '../utils/secureStorage';
 import {getSecureOrAsyncItem} from '../utils/migrationHelper';
 import axios from 'axios';
-import {API_ENDPOINTS, DEFAULT_HEADERS} from '../config/api.config';
+import {
+  API_ENDPOINTS,
+  DEFAULT_HEADERS,
+  API_BASE_URL,
+} from '../config/api.config';
 import apiClient from '../utils/apiClient';
 
-// Define types
+// Define types for new API response
 interface CategoryItem {
-  CATID: number;
-  CATCODE: string;
-  CATDESC: string;
-  SUBCATID: number;
-  SUBCATCODE: string;
-  SUBCATDESC: string;
-  CATEGORY_IMAGE_NAME: string;
-  SUBCATEGORY_IMAGE_NAME: string;
+  id: number;
+  name: string;
+  available: boolean;
 }
 
-interface ApiResponse {
-  input: {
-    CustomerID: number;
-    displayName: string;
-  };
-  output: CategoryItem[];
+interface SubcategoryItem {
+  id: number;
+  name: string;
+  categoryId: number;
+  categoryName: string;
+  available: boolean;
+}
+
+interface NewApiResponse {
+  success: boolean;
+  allCategories: CategoryItem[];
+  allSubCategories: SubcategoryItem[];
+  availableCategories: CategoryItem[];
+  availableSubCategories: SubcategoryItem[];
+  data: any[];
+  count: number;
+  categoryAvailability: {[key: string]: boolean};
+  subCategoryAvailability: {[key: string]: boolean};
 }
 
 interface SubcategoriesMap {
@@ -50,6 +61,9 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
     {},
   );
   const [apiData, setApiData] = useState<CategoryItem[]>([]);
+  const [apiSubcategoryData, setApiSubcategoryData] = useState<
+    SubcategoryItem[]
+  >([]);
   const [customerName, setCustomerName] = useState('');
   // Add customerID state
   const [customerID, setCustomerID] = useState('');
@@ -59,134 +73,192 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Helper function to process API response
-  const processApiResponse = (categoryData: CategoryItem[]) => {
-    // Save the original data
+  // Helper function to process new API response
+  const processNewApiResponse = (
+    categoryData: CategoryItem[],
+    subcategoryData: SubcategoryItem[],
+  ) => {
+    // Save the original category data with availability status
     setApiData(categoryData);
+    setApiSubcategoryData(subcategoryData);
 
-    // Process categories (unique values only)
-    const uniqueCategories = [
-      ...new Set(categoryData.map(item => item.CATDESC)),
-    ];
+    // Process categories (unique values only) - use name field
+    // But preserve the availability status by taking the first occurrence of each unique name
+    const uniqueCategoriesMap = new Map<string, CategoryItem>();
+    categoryData.forEach(category => {
+      if (!uniqueCategoriesMap.has(category.name)) {
+        uniqueCategoriesMap.set(category.name, category);
+      }
+    });
+
+    const uniqueCategories = Array.from(uniqueCategoriesMap.values()).map(
+      cat => cat.name,
+    );
     setApiCategories(uniqueCategories);
 
     // Process subcategories by category
     const subcatMap: SubcategoriesMap = {};
     uniqueCategories.forEach(category => {
-      subcatMap[category] = categoryData
-        .filter(item => item.CATDESC === category)
-        .map(item => item.SUBCATDESC);
+      // Find the category ID for this category name
+      const categoryItem = categoryData.find(item => item.name === category);
+      if (categoryItem) {
+        // Filter subcategories by categoryId
+        const categorySubcategories = subcategoryData
+          .filter(subcat => subcat.categoryId === categoryItem.id)
+          .map(subcat => subcat.name);
+        subcatMap[category] = categorySubcategories;
+      }
     });
 
     setApiSubcategories(subcatMap);
   };
 
-  // Function to fetch categories and subcategories from API
-  const fetchCategoriesAndSubcategories = async () => {
-    try {
-      setLoading(true);
+  // Function to get category options with disabled state
+  const getCategoryOptions = useCallback(() => {
+    const options = apiData.map(category => ({
+      label: category.name,
+      value: category.name,
+      disabled: !category.available, // Disable if not available
+    }));
 
-      // Get customer ID from secure storage
-      const customerID = await getSecureOrAsyncItem('customerID');
-      const displayName = await getSecureOrAsyncItem('displayName');
+    return options;
+  }, [apiData]);
 
-      if (!customerID) {
-        Alert.alert('Error', 'Customer ID not found. Please login again.');
-        setLoading(false);
-        return;
+  // Function to get subcategory options with disabled state for a specific category
+  const getSubcategoryOptions = useCallback(
+    (categoryName: string) => {
+      const categoryItem = apiData.find(item => item.name === categoryName);
+      if (!categoryItem) {
+        return [];
       }
 
-      console.log('Fetching from URL:', API_ENDPOINTS.ITEM_CATEGORIES);
-      console.log(
-        'Request body:',
-        JSON.stringify({
-          CustomerID: parseInt(customerID),
-          displayName: displayName || '',
-        }),
+      // Get all subcategories for this category
+      const subcategories = apiSubcategoryData.filter(
+        subcat => subcat.categoryId === categoryItem.id,
       );
 
+      return subcategories.map(subcat => ({
+        label: subcat.name,
+        value: subcat.name,
+        disabled: !subcat.available, // Disable if not available
+      }));
+    },
+    [apiData, apiSubcategoryData],
+  );
+
+  // Function to fetch categories and subcategories from new API with date parameters
+  const fetchCategoriesAndSubcategories = useCallback(
+    async (fromDate?: Date, toDate?: Date) => {
       try {
-        // Try using the apiClient utility first
-        const response = await apiClient.post<ApiResponse>(
-          '/sf/getItemCatSubCat',
-          {
-            CustomerID: parseInt(customerID),
-            displayName: displayName || '',
-          },
-        );
+        setLoading(true);
+
+        // Get customer ID from secure storage
+        const customerID = await getSecureOrAsyncItem('customerID');
+        const displayName = await getSecureOrAsyncItem('displayName');
+
+        if (!customerID) {
+          Alert.alert('Error', 'Customer ID not found. Please login again.');
+          setLoading(false);
+          return;
+        }
+
+        // Only proceed if both dates are provided
+        if (!fromDate || !toDate) {
+          setLoading(false);
+          return;
+        }
+
+        const formatDateForApi = (date: Date) => {
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+            2,
+            '0',
+          )}-${String(date.getDate()).padStart(2, '0')}`;
+        };
+
+        const requestData = {
+          fromDate: formatDateForApi(fromDate),
+          toDate: formatDateForApi(toDate),
+          customerID: parseInt(customerID),
+          itemCategoryName: null,
+          itemSubCategoryName: null,
+          unitName: null,
+        };
+
+        // Choose endpoint based on isInward
+        const endpoint = isInward
+          ? API_ENDPOINTS.GET_ALL_CATEGORIES_SUBCATEGORIES
+          : API_ENDPOINTS.GET_ALL_CATEGORIES_SUBCATEGORIES_OUTWARD;
 
         console.log(
-          'API Response data:',
-          JSON.stringify(response).substring(0, 200),
+          `🔍 [useReportData] Mode: ${isInward ? 'INWARD' : 'OUTWARD'}`,
         );
+        console.log(`🔍 [useReportData] Selected endpoint: ${endpoint}`);
 
-        if (response && response.output && Array.isArray(response.output)) {
-          // Process the response data
-          processApiResponse(response.output);
-        } else {
-          // Fallback to direct axios call
-          const directResponse = await axios.post<ApiResponse>(
-            API_ENDPOINTS.ITEM_CATEGORIES,
-            {
-              CustomerID: parseInt(customerID),
-              displayName: displayName || '',
-            },
-            {
-              headers: DEFAULT_HEADERS,
-              timeout: 10000,
-            },
+        try {
+          // Try using the apiClient utility first
+          const response = await apiClient.post<NewApiResponse>(
+            endpoint.replace(API_BASE_URL, ''),
+            requestData,
           );
 
-          console.log(
-            'Direct axios response:',
-            JSON.stringify(directResponse.data).substring(0, 200),
-          );
-
-          if (
-            directResponse.data &&
-            directResponse.data.output &&
-            Array.isArray(directResponse.data.output)
-          ) {
+          if (response && response.allCategories && response.allSubCategories) {
             // Process the response data
-            processApiResponse(directResponse.data.output);
+            processNewApiResponse(
+              response.allCategories,
+              response.allSubCategories,
+            );
           } else {
-            console.error('Invalid API response format:', directResponse.data);
+            // Fallback to direct axios call
+            const directResponse = await axios.post<NewApiResponse>(
+              endpoint,
+              requestData,
+              {
+                headers: DEFAULT_HEADERS,
+              },
+            );
+
+            if (
+              directResponse.data &&
+              directResponse.data.allCategories &&
+              directResponse.data.allSubCategories
+            ) {
+              processNewApiResponse(
+                directResponse.data.allCategories,
+                directResponse.data.allSubCategories,
+              );
+            } else {
+              Alert.alert(
+                'Error',
+                'Failed to load categories. Invalid response format.',
+              );
+            }
+          }
+        } catch (error) {
+          if (axios.isAxiosError(error)) {
+            // Handle Axios specific errors
+            const errorMessage = error.response
+              ? `Server error: ${error.response.status}`
+              : error.message;
+
+            Alert.alert(
+              'Connection Error',
+              `Failed to connect to server: ${errorMessage}`,
+            );
+          } else {
             Alert.alert(
               'Error',
-              'Failed to load categories. Invalid response format.',
+              'Failed to load categories. Please try again.',
             );
           }
         }
       } catch (error) {
-        console.error('Error fetching categories:', error);
-
-        if (axios.isAxiosError(error)) {
-          // Handle Axios specific errors
-          const errorMessage = error.response
-            ? `Server error: ${error.response.status}`
-            : error.message;
-
-          console.log('Axios error details:', {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data,
-          });
-
-          Alert.alert(
-            'Connection Error',
-            `Failed to connect to server: ${errorMessage}`,
-          );
-        } else {
-          Alert.alert('Error', 'Failed to load categories. Please try again.');
-        }
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error in overall category handling:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [isInward],
+  ); // Add isInward to dependency array so function updates when mode changes
 
   // Fetch customer data (name and ID) from secure storage
   const fetchCustomerData = async () => {
@@ -194,10 +266,7 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
       // Fetch customer ID
       const storedCustomerID = await getSecureOrAsyncItem('customerID');
       if (storedCustomerID) {
-        console.log('Found customer ID in secure storage:', storedCustomerID);
         setCustomerID(storedCustomerID);
-      } else {
-        console.error('No customer ID found in secure storage');
       }
 
       // First try to get the display name from Disp_name, as this is the current user's name
@@ -205,24 +274,14 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
       const storedDisplayName = await getSecureOrAsyncItem('Disp_name');
 
       if (storedDisplayName) {
-        console.log(
-          'Found display name in secure storage (Disp_name):',
-          storedDisplayName,
-        );
         setCustomerName(storedDisplayName);
-
         // Also store under displayName for compatibility
         await setSecureItem('displayName', storedDisplayName);
       } else {
         // Then try the alternate key if Disp_name is not available
         const altDisplayName = await getSecureOrAsyncItem('displayName');
         if (altDisplayName) {
-          console.log(
-            'Found display name in secure storage (displayName):',
-            altDisplayName,
-          );
           setCustomerName(altDisplayName);
-
           // Store under Disp_name for consistency
           await setSecureItem('Disp_name', altDisplayName);
         } else {
@@ -231,22 +290,14 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
             'CUSTOMER_NAME',
           );
           if (storedCustomerName) {
-            console.log(
-              'Found CUSTOMER_NAME in secure storage:',
-              storedCustomerName,
-            );
             setCustomerName(storedCustomerName);
           } else {
             // Only use this as a last resort fallback
-            console.log(
-              'No customer name found, using default: UNICORP ENTERPRISES',
-            );
             setCustomerName('UNICORP ENTERPRISES');
           }
         }
       }
     } catch (error) {
-      console.error('Error fetching customer data:', error);
       // Default fallback
       setCustomerName('UNICORP ENTERPRISES');
     }
@@ -381,7 +432,6 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
 
   // Initialize data on mount
   useEffect(() => {
-    fetchCategoriesAndSubcategories();
     fetchCustomerData();
   }, []);
 
@@ -403,5 +453,8 @@ export const useReportData = ({isInward}: UseReportDataProps) => {
     validateInputs,
     formatDate,
     formatDateForFilename,
+    getCategoryOptions,
+    getSubcategoryOptions,
+    fetchCategoriesAndSubcategories, // Add this function to the return
   };
 };

@@ -24,6 +24,7 @@ import {
   removeSecureItem,
 } from '../utils/secureStorage';
 import {getSecureOrAsyncItem, migrateKey} from '../utils/migrationHelper';
+import {useAuthorization} from '../contexts/AuthorizationContext'; // Adjust the import path as necessary
 
 interface ProfileMenuProps {
   displayName: string | null;
@@ -36,6 +37,7 @@ interface AccountItem {
   customerId: number;
   groupId: number;
   token: string;
+  rar: string;
   key: string;
 }
 
@@ -47,6 +49,7 @@ interface CustomerAccount {
   CustomerGroupID: number;
   CustomerName: string;
   token: string;
+  RAR: string;
   isCurrentAccount: boolean;
 }
 
@@ -89,6 +92,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
   const [customerId, setCustomerId] = useState<string | null>(null);
 
   const {setDisplayName} = useDisplayName();
+  const {initializeAuthorization, clearAuthorization} = useAuthorization();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   // Function to show toast message
@@ -242,6 +246,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
           `Account: ${account.DisplayName} (ID: ${account.CustomerID})`,
         );
         console.log(`Token: ${formatTokenForLogging(account.token)}`);
+        console.log(`RAR: ${account.RAR}`);
         console.log(`Is Current: ${account.isCurrentAccount}`);
         console.log('-------------------');
       });
@@ -256,6 +261,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
             response.output.currentAccount.token,
           )}`,
         );
+        console.log(`RAR: ${response.output.currentAccount.RAR}`);
       } else {
         console.log('No current account returned from API');
       }
@@ -271,6 +277,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
           customerId: account.CustomerID,
           groupId: account.CustomerGroupID,
           token: account.token,
+          rar: account.RAR,
           key: `${account.CustomerID}_${account.DisplayName.replace(
             /\s+/g,
             '_',
@@ -318,7 +325,10 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
   const handleLogout = async () => {
     try {
-      // Remove items from secure storage
+      // Clear authorization first
+      await clearAuthorization();
+
+      // Remove other items from secure storage
       await Promise.all([
         removeSecureItem('userToken'),
         removeSecureItem('Disp_name'),
@@ -360,6 +370,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
         'Account token:',
         formatTokenForLogging(selectedAccount.token),
       );
+      console.log('Account RAR:', selectedAccount.rar);
       console.log('Account value:', selectedAccount.value);
 
       // Get the group ID
@@ -406,12 +417,13 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
           console.log('TOKENS ARE DIFFERENT - this is expected');
         }
 
-        // Store the new account information including the token
+        // Store the new account information including the token and RAR
         await Promise.all([
           setSecureItem('customerID', selectedAccount.customerId.toString()),
           setSecureItem('Disp_name', selectedAccount.label),
           setSecureItem('FK_CUST_GROUP_ID', selectedAccount.groupId.toString()),
           setSecureItem('userToken', selectedAccount.token),
+          setSecureItem('RAR', selectedAccount.rar),
         ]);
 
         // Verify token was stored
@@ -421,12 +433,19 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
           formatTokenForLogging(verifyToken),
         );
 
+        // Verify RAR was stored
+        const verifyRAR = await getSecureItem('RAR');
+        console.log('Verified stored RAR:', verifyRAR);
+
         // Additional verification that tokens are different
         if (oldToken === verifyToken) {
           console.warn('WARNING: Token did not change after storage!');
         } else {
           console.log('✅ Token successfully changed');
         }
+
+        // Reinitialize authorization with new RAR
+        await initializeAuthorization();
 
         // Call the onAccountSwitch callback if provided
         if (onAccountSwitch) {
@@ -480,6 +499,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
         'API response token:',
         formatTokenForLogging(currentAccount.token),
       );
+      console.log('API response RAR:', currentAccount.RAR);
 
       // Store the new account information
       await Promise.all([
@@ -490,11 +510,19 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({
           currentAccount.CustomerGroupID.toString(),
         ),
         setSecureItem('userToken', currentAccount.token), // Store the new token
+        setSecureItem('RAR', currentAccount.RAR), // Store the new RAR
       ]);
 
       // Verify token was stored
       const verifyToken = await getSecureItem('userToken');
       console.log('Verified stored token:', formatTokenForLogging(verifyToken));
+
+      // Verify RAR was stored
+      const verifyRAR = await getSecureItem('RAR');
+      console.log('Verified stored RAR:', verifyRAR);
+
+      // Reinitialize authorization with new RAR
+      await initializeAuthorization();
 
       // Call the onAccountSwitch callback if provided
       if (onAccountSwitch) {

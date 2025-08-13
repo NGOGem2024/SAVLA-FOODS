@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -63,6 +63,7 @@ interface UnitOption {
 const FinanceScreen: React.FC = () => {
   const {displayName} = useDisplayName();
   const scrollViewRef = useRef<ScrollView>(null);
+  const tableContainerRef = useRef<View>(null); // New ref for table container
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -86,6 +87,29 @@ const FinanceScreen: React.FC = () => {
   const [openToDatePicker, setOpenToDatePicker] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [entriesPerPage] = useState<number>(10);
+
+  // Scroll to table when reportData updates
+  useEffect(() => {
+    if (
+      reportData &&
+      reportData.reportData &&
+      reportData.reportData.length > 0 &&
+      tableContainerRef.current
+    ) {
+      tableContainerRef.current.measureLayout(
+        scrollViewRef.current as any,
+        (x, y) => {
+          scrollViewRef.current?.scrollTo({
+            y: y - 20, // Slight offset for visibility
+            animated: true,
+          });
+        },
+        () => {
+          console.log('Failed to measure table container layout');
+        },
+      );
+    }
+  }, [reportData]);
 
   React.useEffect(() => {
     if (displayName) {
@@ -223,7 +247,6 @@ const FinanceScreen: React.FC = () => {
 
     try {
       const headers = await getAuthHeaders();
-      // Send units as an array instead of string
       const unitValue = formData.units.length > 0 ? formData.units : null;
 
       const payload1 = {
@@ -403,7 +426,7 @@ const FinanceScreen: React.FC = () => {
     const totalPages = getTotalPages();
 
     return (
-      <View style={styles.tableContainer}>
+      <View ref={tableContainerRef} style={styles.tableContainer}>
         <View style={styles.tableHeader}>
           <Text style={styles.sectionTitle}>Invoice Report</Text>
           <View style={styles.tableActions}>
@@ -733,7 +756,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 10,
-    marginHorizontal: -5, // Compensate for button margins
+    marginHorizontal: -5,
   },
   button: {
     flex: 1,
@@ -741,9 +764,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginHorizontal: 5,
-    elevation: 3, // Add elevation for Android shadow
-    justifyContent: 'center', // Center content vertically
-    minHeight: 45, // Reduced height for more compact appearance
+    elevation: 3,
+    justifyContent: 'center',
+    minHeight: 45,
     ...Platform.select({
       android: {
         overflow: 'hidden',
@@ -757,7 +780,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center', // Ensure text is centered
+    textAlign: 'center',
   },
   submitButton: {
     backgroundColor: '#3498db',
@@ -766,7 +789,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center', // Ensure text is centered
+    textAlign: 'center',
   },
   disabledButton: {
     backgroundColor: '#bdc3c7',

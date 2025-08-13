@@ -33,6 +33,8 @@ import OfflineNotice from './src/components/OfflineNotice.tsx';
 import {RootStackParamList, MainStackParamList} from './src/type/type';
 
 import BottomTabNavigator from './src/components/BottomTabNavigator';
+import AuthorizedBottomTabNavigator from './src/components/AuthorizedBottomTabNavigator';
+import {AuthorizationProvider} from './src/contexts/AuthorizationContext';
 import OrderConfirmationScreen from './src/screens/OrderConfirmationScreen';
 import OrderHistoryScreen from './src/screens/OrderHistoryScreen';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -41,12 +43,10 @@ import PendingOrdersScreen from './src/screens/PendingOrdersScreen';
 import EditOrderScreen from './src/components/EditOrderScreen.tsx';
 import GrnDetailsScreen from './src/screens/GRNDetailsScreen.tsx';
 import OutwardDetailsScreen from './src/screens/OutwardDetailsScreen.tsx';
-import WelcomeScreen from './src/screens/WelcomeScreen.tsx';
-import DemoProductsScreen from './src/screens/DemoProductsScreen.tsx';
 // import ZeroStockReportScreen from './src/screens/stocks/ZeroStockReportScreen.tsx';
 
 const RootStack = createStackNavigator<RootStackParamList>();
-const MainStack = createStackNavigator<MainStackParamList>();
+const MainStack = createStackNavigator<any>();
 
 const MainStackNavigator: React.FC = () => {
   return (
@@ -54,13 +54,13 @@ const MainStackNavigator: React.FC = () => {
       <MainStack.Navigator>
         <MainStack.Screen
           name="BottomTabNavigator"
-          component={BottomTabNavigator}
+          component={AuthorizedBottomTabNavigator}
           options={{headerShown: false}}
         />
 
         <MainStack.Screen
           name="PlaceOrderScreen"
-          component={PlaceOrderScreen}
+          component={PlaceOrderScreen as unknown as React.ComponentType<any>}
           options={({navigation}) => ({
             headerLeft: () => (
               <TouchableOpacity
@@ -77,20 +77,23 @@ const MainStackNavigator: React.FC = () => {
 
         <MainStack.Screen
           name="OrderConfirmationScreen"
-          component={OrderConfirmationScreen}
+          component={
+            OrderConfirmationScreen as unknown as React.ComponentType<any>
+          }
           options={{headerShown: false}}
         />
 
         <MainStack.Screen
           name="GrnDetailsScreen"
-          component={GrnDetailsScreen}
+          component={GrnDetailsScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
         />
 
-
         <MainStack.Screen
           name="OutwardDetailsScreen"
-          component={OutwardDetailsScreen}
+          component={
+            OutwardDetailsScreen as unknown as React.ComponentType<any>
+          }
           options={{headerShown: false}}
         />
 
@@ -102,7 +105,7 @@ const MainStackNavigator: React.FC = () => {
 
         <MainStack.Screen
           name="SubCategory"
-          component={SubCategory}
+          component={SubCategory as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
           // options={({route}) => ({
           //   title: route.params.category,
@@ -110,7 +113,7 @@ const MainStackNavigator: React.FC = () => {
         />
         <MainStack.Screen
           name="ItemDetailScreen"
-          component={ItemDetailScreen}
+          component={ItemDetailScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
           // options={({route}) => ({
           //   title: route.params.subcategoryName,
@@ -118,7 +121,7 @@ const MainStackNavigator: React.FC = () => {
         />
         <MainStack.Screen
           name="OrderDetailsScreen"
-          component={OrderDetailsScreen}
+          component={OrderDetailsScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
           // options={({route}) => ({
           //   title: route.params.subcategoryName,
@@ -126,12 +129,12 @@ const MainStackNavigator: React.FC = () => {
         />
         <MainStack.Screen
           name="ItemDetailsExpanded"
-          component={ItemDetailsExpanded}
+          component={ItemDetailsExpanded as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
         />
         <MainStack.Screen
           name="LotReportScreen"
-          component={LotReportScreen}
+          component={LotReportScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
         />
         {/* <MainStack.Screen
@@ -141,24 +144,19 @@ const MainStackNavigator: React.FC = () => {
         /> */}
         <MainStack.Screen
           name="PendingOrdersScreen"
-          component={PendingOrdersScreen}
+          component={PendingOrdersScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
         />
 
         <MainStack.Screen
           name="EditOrderScreen"
-          component={EditOrderScreen}
+          component={EditOrderScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
         />
 
         <MainStack.Screen
           name="OrderHistoryScreen"
-          component={OrderHistoryScreen}
-          options={{headerShown: false}}
-        />
-        <RootStack.Screen
-          name="WelcomeScreen"
-          component={WelcomeScreen}
+          component={OrderHistoryScreen as unknown as React.ComponentType<any>}
           options={{headerShown: false}}
         />
         <RootStack.Screen
@@ -168,7 +166,9 @@ const MainStackNavigator: React.FC = () => {
         />
         <MainStack.Screen
           name="QuantitySelectorModal"
-          component={QuantitySelectorModal}
+          component={
+            QuantitySelectorModal as unknown as React.ComponentType<any>
+          }
           options={{
             presentation: 'modal',
             title: 'Select Quantity',
@@ -197,53 +197,46 @@ function App(): JSX.Element {
   return (
     <GestureHandlerRootView style={{flex: 1}}>
       <SafeAreaProvider>
-        <DisplayNameProvider>
-          <NotificationProvider>
-            <CartProvider>
-              <CustomerProvider>
-                <NetworkProvider>
-                  <NavigationContainer>
-                    <RootStack.Navigator
-                      initialRouteName="SplashScreen"
-                      screenOptions={{
-                        headerShown: false,
-                        gestureEnabled: false,
-                      }}>
-                      <RootStack.Screen
-                        name="SplashScreen"
-                        component={SplashScreen}
-                      />
-                      <RootStack.Screen
-                        name="OtpVerificationScreen"
-                        component={OtpVerificationScreen}
-                        options={{headerShown: false, gestureEnabled: false}}
-                      />
-                      <RootStack.Screen
-                        name="Main"
-                        component={MainStackNavigator}
-                      />
-                      <RootStack.Screen
-                        name="WelcomeScreen"
-                        component={WelcomeScreen}
-                      />
-                      <RootStack.Screen
-                        name="DemoProductsScreen"
-                        component={DemoProductsScreen}
-                      />
-
-                      {/* <RootStack.Screen
+        <AuthorizationProvider>
+          <DisplayNameProvider>
+            <NotificationProvider>
+              <CartProvider>
+                <CustomerProvider>
+                  <NetworkProvider>
+                    <NavigationContainer>
+                      <RootStack.Navigator
+                        initialRouteName="SplashScreen"
+                        screenOptions={{
+                          headerShown: false,
+                          gestureEnabled: false,
+                        }}>
+                        <RootStack.Screen
+                          name="SplashScreen"
+                          component={SplashScreen}
+                        />
+                        <RootStack.Screen
+                          name="OtpVerificationScreen"
+                          component={OtpVerificationScreen}
+                          options={{headerShown: false, gestureEnabled: false}}
+                        />
+                        <RootStack.Screen
+                          name="Main"
+                          component={MainStackNavigator}
+                        />
+                        {/* <RootStack.Screen
                           name="HomeScreen"
                           component={MainStackNavigator}
                           options={{headerShown: false}}
                         /> */}
-                    </RootStack.Navigator>
-                  </NavigationContainer>
-                  <OfflineNotice />
-                </NetworkProvider>
-              </CustomerProvider>
-            </CartProvider>
-          </NotificationProvider>
-        </DisplayNameProvider>
+                      </RootStack.Navigator>
+                    </NavigationContainer>
+                    <OfflineNotice />
+                  </NetworkProvider>
+                </CustomerProvider>
+              </CartProvider>
+            </NotificationProvider>
+          </DisplayNameProvider>
+        </AuthorizationProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
