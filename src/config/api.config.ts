@@ -7,24 +7,24 @@ const YOUR_COMPUTER_IP = '202.189.234.140';
 // const YOUR_COMPUTER_IP = '192.168.1.37';
 const PORT = '5000';
 
-export const API_BASE_URL = `http://${YOUR_COMPUTER_IP}:${PORT}`;
+export const API_BASE_URL = `http://${YOUR_COMPUTER_IP}:${PORT}/sf`;
 
 export const API_ENDPOINTS = {
-  LOGIN: `${API_BASE_URL}/sf/getUserAccountID`,
+  LOGIN: `${API_BASE_URL}/getUserAccountID`,
   GET_CUSTOMER_ID: `${API_BASE_URL}/getCustomerID`,
-  GET_LIST_ACCOUNT: `${API_BASE_URL}/sf/listAccounts`,
+  GET_LIST_ACCOUNT: `${API_BASE_URL}/listAccounts`,
   GET_CUSTOMER_INFO: `${API_BASE_URL}/getCustomerInfo`,
-  ITEM_CATEGORIES: `${API_BASE_URL}/sf/getItemCatSubCat`,
-  GET_ITEMS: `${API_BASE_URL}/sf/getItemsBySubCategory`,
-  GET_ITEM_DETAILS: `${API_BASE_URL}/sf/getItemDetailswithStock`,
+  ITEM_CATEGORIES: `${API_BASE_URL}/getItemCatSubCat`,
+  GET_ITEMS: `${API_BASE_URL}/getItemsBySubCategory`,
+  GET_ITEM_DETAILS: `${API_BASE_URL}/getItemDetailswithStock`,
 
   //Searching
-  SEARCH_STOCK_ITEMS: `${API_BASE_URL}/sf/searchStockItems`,
+  SEARCH_STOCK_ITEMS: `${API_BASE_URL}/searchStockItems`,
   SEARCH_ITEMS: `${API_BASE_URL}/search/SearchItems`,
 
   //Switch Account
-  GET_ACCOUNTS_BY_GROUP: `${API_BASE_URL}/sf/getAccountsByGroup`,
-  SWITCH_ACCOUNT: `${API_BASE_URL}/sf/switchAccount`,
+  GET_ACCOUNTS_BY_GROUP: `${API_BASE_URL}/getAccountsByGroup`,
+  SWITCH_ACCOUNT: `${API_BASE_URL}/switchAccount`,
 
   //OrderHistory&Pending Flow
   GET_PLACEORDER_DETAILS: `${API_BASE_URL}/order/placeOrder`,

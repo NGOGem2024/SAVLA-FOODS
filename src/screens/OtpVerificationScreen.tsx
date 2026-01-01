@@ -207,11 +207,11 @@ const OtpVerificationScreen: React.FC<{
 
       setIsLoading(true);
 
-      console.log('🟢 Making login request to:', API_ENDPOINTS.LOGIN);
-      console.log('🔹 With data:', {
-        sf_userName: username,
-        sf_userPwd: password,
-      });
+      // console.log('🟢 Making login request to:', API_ENDPOINTS.LOGIN);
+      // console.log('🔹 With data:', {
+      //   sf_userName: username,
+      //   sf_userPwd: password,
+      // });
 
       const response = await axios({
         method: 'post',
@@ -223,10 +223,10 @@ const OtpVerificationScreen: React.FC<{
         headers: DEFAULT_HEADERS,
       });
 
-      console.log('✅ Full response:', response);
-      console.log('📩 Response headers:', response.headers);
-      console.log('📌 Response status:', response.status);
-      console.log('📤 Response received:', response.data);
+      // console.log('✅ Full response:', response);
+      // console.log('📩 Response headers:', response.headers);
+      // console.log('📌 Response status:', response.status);
+      // console.log('📤 Response received:', response.data);
 
       if (response.data?.output) {
         const {token, CustomerID, DisplayName, CustomerGroupID, RAR} =
@@ -237,9 +237,9 @@ const OtpVerificationScreen: React.FC<{
 
         await setSecureItem('customerID', CustomerID.toString());
 
-        console.log('🟢 Received Token:', token);
-        console.log('🟢 Received RAR:', RAR);
-        console.log('🟢 Received DisplayName:', DisplayName);
+        // console.log('🟢 Received Token:', token);
+        // console.log('🟢 Received RAR:', RAR);
+        // console.log('🟢 Received DisplayName:', DisplayName);
 
         if (!token) {
           console.error('❌ Token is undefined or empty!');
@@ -258,19 +258,19 @@ const OtpVerificationScreen: React.FC<{
 
         // Update display name in context
         setDisplayName(DisplayName);
-        console.log('🟢 Display name set in context:', DisplayName);
+        // console.log('🟢 Display name set in context:', DisplayName);
 
         // Parse and set authorization in context
         const rarValues = parseRARString(RAR || '');
-        console.log('🟢 Parsed RAR values:', rarValues);
+        // console.log('🟢 Parsed RAR values:', rarValues);
 
         if (rarValues.length > 0) {
           await setUserAuthorization(rarValues);
-          console.log('🟢 User authorization set successfully');
+          // console.log('🟢 User authorization set successfully');
         } else {
-          console.log(
-            '⚠️ No valid RAR values found, user will have no permissions',
-          );
+          // console.log(
+          //   '⚠️ No valid RAR values found, user will have no permissions',
+          // );
           // Clear any existing authorization
           await clearAuthorization();
         }
@@ -278,12 +278,12 @@ const OtpVerificationScreen: React.FC<{
         // Also check that Keychain is working properly
         const storedID = await getSecureItem('customerID');
         const storedRAR = await getSecureItem('RAR');
-        console.log('Stored customerID in secure storage:', storedID);
-        console.log('Stored RAR in secure storage:', storedRAR);
+        // console.log('Stored customerID in secure storage:', storedID);
+        // console.log('Stored RAR in secure storage:', storedRAR);
 
         // Verify Token Storage
         const storedToken = await getSecureItem('userToken');
-        console.log('📌 Token Stored in secure storage:', storedToken);
+        // console.log('📌 Token Stored in secure storage:', storedToken);
 
         // Set Authorization Header
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;

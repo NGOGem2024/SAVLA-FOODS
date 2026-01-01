@@ -14,10 +14,6 @@ import {
   ReportsStackNavigator,
 } from './BottomTabNavigator';
 
-// Extract exported stacks from BottomTabNavigator if available
-// We re-import the stacks by referencing the default navigator
-// but since original file doesn't export stacks, we will keep tab mapping light
-
 const Tab = createBottomTabNavigator();
 
 interface TabConfig {

@@ -207,7 +207,7 @@ const SubCategory: React.FC = () => {
       setError(null);
 
       const response = await axios.post(
-        `${API_BASE_URL}/sf/getItemCatSubCat`,
+        `${API_BASE_URL}/getItemCatSubCat`,
         {
           CustomerID: CustomerID,
         },

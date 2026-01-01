@@ -566,7 +566,7 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     if (CustomerID) {
       const refreshData = () => {
-        console.log('Network restored, refreshing home screen data...');
+        // console.log('Network restored, refreshing home screen data...');
         fetchCategories(CustomerID);
         if (searchQuery.trim()) {
           searchItems(searchQuery);

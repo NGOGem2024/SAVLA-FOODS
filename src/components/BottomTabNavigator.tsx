@@ -30,6 +30,9 @@ import {useAuthorization} from '../contexts/AuthorizationContext';
 import InvoiceScreen from '../screens/Invoice/InvoiceScreen';
 import InvoiceReportScreen from '../screens/Invoice/InvoiceReportScreen';
 import InvoiceDetailsScreen from '../screens/Invoice/InvoiceDetailsScreen';
+import InvoiceList from '../screens/Invoice/InvoiceListScreen';
+import InvoiceListScreen from '../screens/Invoice/InvoiceListScreen';
+// import OutstandingReportScreen from '../screens/Invoice/OutstandingReportScreen';
 
 interface OrderItem {
   detailId?: number;
@@ -77,7 +80,9 @@ type OrdersStackParamList = {
 
 type FinanceStackParamList = {
   InvoiceHome: undefined;
+
   InvoiceReportScreen: undefined;
+  InvoiceList: undefined;
   InvoiceDetailsScreen: {invoiceNo: string};
 };
 
@@ -156,37 +161,38 @@ export const OrdersStackNavigator = () => {
     </OrdersStack.Navigator>
   );
 };
-
 export const FinanceStackNavigator = () => {
   return (
     <InvoiceStack.Navigator
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#fff',
-        },
+        headerStyle: {backgroundColor: '#fff'},
         headerTintColor: '#F48221',
       }}>
+      {/* This is the new list screen - first screen when tapping Invoice tab */}
       <InvoiceStack.Screen
         name="InvoiceHome"
-        component={InvoiceScreen}
+        component={InvoiceListScreen}
         options={{headerShown: false}}
       />
 
+      {/* Your EXISTING InvoiceScreen - now accessed via "Invoice Report" */}
       <InvoiceStack.Screen
         name="InvoiceReportScreen"
-        component={InvoiceReportScreen as unknown as React.ComponentType<any>}
-        options={{
-          title: 'Invoice Report Table',
-        }}
+        component={InvoiceScreen} // ← Your original InvoiceScreen stays here
+        options={{headerShown: false}}
       />
+
+      {/* Outstanding Report
+      <InvoiceStack.Screen
+        name="OutstandingReportScreen"
+        component={OutstandingReportScreen}
+        options={{headerShown: false}}
+      /> */}
 
       <InvoiceStack.Screen
         name="InvoiceDetailsScreen"
         component={InvoiceDetailsScreen}
-        options={{
-          title: 'Invoice Details',
-          headerShown: false, // Since you're using LayoutWrapper
-        }}
+        options={{headerShown: false}}
       />
     </InvoiceStack.Navigator>
   );
