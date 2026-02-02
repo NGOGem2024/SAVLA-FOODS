@@ -22,12 +22,12 @@ const InvoiceListScreen = () => {
       screen: 'InvoiceReportScreen', // This is your EXISTING InvoiceScreen
       description: 'View all generated invoices and billing history',
     },
-    // {
-    //   title: 'Outstanding Report',
-    //   icon: 'account-balance-wallet',
-    //   screen: 'OutstandingReportScreen',
-    //   description: 'View pending payments and outstanding amounts',
-    // },
+    {
+      title: 'Outstanding Report',
+      icon: 'account-balance-wallet',
+      screen: 'OutstandingReportScreen',
+      description: 'View pending payments and outstanding amounts',
+    },
   ];
 
   return (

@@ -65,9 +65,12 @@ export const API_ENDPOINTS = {
   GET_STOCK_PDF_REPORT: `${API_BASE_URL}/stocks/getStockpdf`,
   GET_ZERO_STOCK_PDF_REPORT: `${API_BASE_URL}/stocks/getZeroStockpdf`,
 
+  //Invoice
+
   GET_INVOICE_REPORT: `${API_BASE_URL}/invoice/getInvoiceReportTable`,
   GET_TAX_INVOICE_DETAILS: `${API_BASE_URL}/invoice/taxinvoice`,
   GET_PDF_REPORT: `${API_BASE_URL}/invoice/taxinvoice/pdf`,
+  GET_OUTSTANDING_REPORT: `${API_BASE_URL}/Outstanding/outstandingReport`,
 
   GET_ALL_CATEGORIES_SUBCATEGORIES: `${API_BASE_URL}/search/CategorySubAvailability`,
   GET_ALL_CATEGORIES_SUBCATEGORIES_OUTWARD: `${API_BASE_URL}/search/OutwardCategorySubAvailability`,
