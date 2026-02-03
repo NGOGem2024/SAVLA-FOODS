@@ -1925,12 +1925,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 12,
-  },
+  // errorText: {
+  //   color: '#dc3545',
+  //   fontSize: 12,
+  //   marginTop: 4,
+  //   marginLeft: 12,
+  // },
   multipleOrdersContainer: {
     width: '100%',
     marginTop: 10,

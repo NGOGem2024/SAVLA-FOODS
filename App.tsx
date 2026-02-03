@@ -43,6 +43,8 @@ import PendingOrdersScreen from './src/screens/PendingOrdersScreen';
 import EditOrderScreen from './src/components/EditOrderScreen.tsx';
 import GrnDetailsScreen from './src/screens/GRNDetailsScreen.tsx';
 import OutwardDetailsScreen from './src/screens/OutwardDetailsScreen.tsx';
+import OutstandingReportScreen from './src/screens/Invoice/OutstandingReportScreen.tsx';
+import InvoiceDetailsScreen from './src/screens/Invoice/InvoiceDetailsScreen.tsx';
 // import ZeroStockReportScreen from './src/screens/stocks/ZeroStockReportScreen.tsx';
 
 const RootStack = createStackNavigator<RootStackParamList>();
@@ -119,6 +121,29 @@ const MainStackNavigator: React.FC = () => {
           //   title: route.params.subcategoryName,
           // })}
         />
+
+        <MainStack.Screen
+          name="OutstandingReportScreen"
+          component={
+            OutstandingReportScreen as unknown as React.ComponentType<any>
+          }
+          options={{headerShown: false}}
+          // options={({route}) => ({
+          //   title: route.params.subcategoryName,
+          // })}
+        />
+
+        <MainStack.Screen
+          name="InvoiceDetailsScreen"
+          component={
+            InvoiceDetailsScreen as unknown as React.ComponentType<any>
+          }
+          options={{headerShown: false}}
+          // options={({route}) => ({
+          //   title: route.params.subcategoryName,
+          // })}
+        />
+
         <MainStack.Screen
           name="OrderDetailsScreen"
           component={OrderDetailsScreen as unknown as React.ComponentType<any>}

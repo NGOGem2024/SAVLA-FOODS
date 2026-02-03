@@ -256,11 +256,11 @@ const PaymentComponent: React.FC<PaymentComponentProps> = ({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.paymentButton}
         onPress={() => setModalVisible(true)}>
         <Text style={styles.paymentButtonText}>Make Payment</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <Modal transparent visible={modalVisible} animationType="slide">
         <View style={styles.modalOverlay}>
